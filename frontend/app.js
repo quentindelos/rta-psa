@@ -10,8 +10,52 @@ const webSourcesEl = document.getElementById("web-sources");
 const lightbox = document.getElementById("lightbox");
 const lightboxImg = document.getElementById("lightbox-img");
 const themeToggle = document.getElementById("theme-toggle");
+const historyEl = document.getElementById("history");
+const historyListEl = document.getElementById("history-list");
+const historyClearBtn = document.getElementById("history-clear");
 
 const THEME_KEY = "rta-psa-theme";
+const HISTORY_KEY = "rta-psa-history";
+const HISTORY_MAX = 12;
+
+function loadHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveQueryToHistory(query) {
+  const history = loadHistory().filter((q) => q !== query);
+  history.unshift(query);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_MAX)));
+  renderHistory();
+}
+
+function renderHistory() {
+  const history = loadHistory();
+  historyEl.hidden = history.length === 0;
+  if (history.length === 0) return;
+
+  historyListEl.innerHTML = history
+    .map((q) => `<button type="button" class="history-item">${escapeHtml(q)}</button>`)
+    .join("");
+
+  historyListEl.querySelectorAll(".history-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      queryInput.value = btn.textContent;
+      form.requestSubmit();
+    });
+  });
+}
+
+historyClearBtn.addEventListener("click", () => {
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+});
+
+renderHistory();
 
 function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
@@ -38,6 +82,7 @@ form.addEventListener("submit", async (event) => {
   try {
     const data = await fetchJSON(`/api/ask?q=${encodeURIComponent(query)}`);
     renderAnswer(data);
+    saveQueryToHistory(query);
   } catch (err) {
     showStatus(`Erreur : ${err.message}`, true);
   } finally {
