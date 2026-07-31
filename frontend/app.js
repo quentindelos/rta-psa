@@ -224,6 +224,11 @@ function renderMarkdown(raw) {
   const html = [];
   let paragraph = [];
   let i = 0;
+  // Gemini écrit souvent chaque étape avec "1." (le renderer est censé
+  // renuméroter), mais dès qu'un paragraphe ou une liste à puces s'intercale
+  // entre deux étapes, on referme le <ol> — et un nouveau <ol> recommence à 1
+  // en HTML. On fait donc continuer la numérotation entre les blocs.
+  let nextOrderedNumber = 1;
 
   const flushParagraph = () => {
     if (paragraph.length) {
@@ -251,7 +256,8 @@ function renderMarkdown(raw) {
         items.push(`<li>${inlineFormat(m[1])}</li>`);
         i++;
       }
-      html.push(`<ol>${items.join("")}</ol>`);
+      html.push(`<ol start="${nextOrderedNumber}">${items.join("")}</ol>`);
+      nextOrderedNumber += items.length;
       continue;
     }
 
