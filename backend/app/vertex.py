@@ -69,12 +69,22 @@ class RtaAnswer:
     cited_pages: list[str] = field(default_factory=list)
 
 
+_client_cache: genai.Client | None = None
+
+
 def _client(settings: Settings) -> genai.Client:
-    return genai.Client(
-        vertexai=True,
-        project=settings.google_cloud_project,
-        location=settings.google_cloud_region,
-    )
+    # Un seul client Vertex AI réutilisé pour tous les appels (embedding + génération) :
+    # en recréer un par appel referait à chaque fois la résolution des credentials et
+    # perdrait la connexion HTTP déjà établie, ce qui ajoute une latence évitable sur
+    # chaque requête /api/ask (2 à 3 appels Gemini enchaînés).
+    global _client_cache
+    if _client_cache is None:
+        _client_cache = genai.Client(
+            vertexai=True,
+            project=settings.google_cloud_project,
+            location=settings.google_cloud_region,
+        )
+    return _client_cache
 
 
 def embed_query(settings: Settings, text: str) -> np.ndarray:

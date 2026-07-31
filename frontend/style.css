@@ -440,6 +440,67 @@ footer a {
   font-size: 0.8rem;
 }
 
+/* Grand écran : bouton Discord fixe en haut à gauche de l'écran, avec
+   l'historique juste en dessous — comme avant, mais en réservant réellement
+   la place via un padding sur body (plutôt qu'un simple chevauchement) pour
+   que ça reste propre sur les écrans moyens/petits laptops aussi. */
+@media (min-width: 900px) {
+  body {
+    padding-left: 300px;
+  }
+
+  .discord-banner {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 10;
+    width: 280px;
+    max-width: 280px;
+    margin: 0;
+    padding: 0.8rem 0.9rem;
+    gap: 0.6rem;
+  }
+
+  .discord-icon {
+    width: 26px;
+    height: 26px;
+  }
+
+  .discord-text {
+    font-size: 0.82rem;
+  }
+
+  .discord-text strong {
+    font-size: 0.92rem;
+  }
+
+  .discord-cta {
+    display: none;
+  }
+
+  .history {
+    position: fixed;
+    top: 8.5rem;
+    left: 1rem;
+    width: 280px;
+    max-height: calc(100vh - 9.5rem);
+    overflow-y: auto;
+    margin-top: 0;
+  }
+
+  .history-list {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .history-item {
+    max-width: 100%;
+    width: 100%;
+    text-align: left;
+    white-space: normal;
+  }
+}
+
 /* Tablette */
 @media (max-width: 700px) {
   main,
