@@ -158,10 +158,6 @@ h1 {
   font-size: 1rem;
 }
 
-.discord-compact-label {
-  display: none;
-}
-
 .discord-cta {
   flex: 0 0 auto;
   font-weight: 600;
@@ -183,8 +179,18 @@ main {
   gap: 0.6rem;
 }
 
+#vehicle {
+  flex: 1 1 220px;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 0.95rem;
+}
+
 #query {
-  flex: 1 1 300px;
+  flex: 3 1 300px;
   padding: 0.85rem 1rem;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -193,6 +199,7 @@ main {
   font-size: 1.05rem;
 }
 
+#vehicle:focus,
 #query:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
@@ -433,60 +440,6 @@ footer a {
   font-size: 0.8rem;
 }
 
-/* Grand écran : bouton Discord compact, ancré en haut à gauche (comme le
-   bouton de thème en haut à droite) plutôt qu'une bannière pleine largeur */
-@media (min-width: 701px) {
-  .discord-banner {
-    position: fixed;
-    top: 1rem;
-    left: 1rem;
-    z-index: 10;
-    max-width: none;
-    width: auto;
-    margin: 0;
-    padding: 0.6rem 1.1rem 0.6rem 0.7rem;
-    gap: 0.55rem;
-  }
-
-  .discord-icon {
-    width: 24px;
-    height: 24px;
-  }
-
-  .discord-text,
-  .discord-cta {
-    display: none;
-  }
-
-  .discord-compact-label {
-    display: inline;
-    font-size: 0.95rem;
-  }
-
-  /* Historique en barre latérale gauche, sous le bouton Discord */
-  .history {
-    position: fixed;
-    top: 4.5rem;
-    left: 1rem;
-    width: 220px;
-    max-height: calc(100vh - 5.5rem);
-    overflow-y: auto;
-    margin-top: 0;
-  }
-
-  .history-list {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .history-item {
-    max-width: 100%;
-    width: 100%;
-    text-align: left;
-    white-space: normal;
-  }
-}
-
 /* Tablette */
 @media (max-width: 700px) {
   main,
@@ -496,6 +449,17 @@ footer a {
 
   .sources {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+
+  #ask-form {
+    flex-direction: column;
+  }
+
+  #vehicle,
+  #query,
+  #ask-form button {
+    width: 100%;
+    flex: 0 0 auto;
   }
 }
 
@@ -530,16 +494,6 @@ footer a {
 
   main {
     padding: 0 0.75rem 2rem;
-  }
-
-  #ask-form {
-    flex-direction: column;
-  }
-
-  #query,
-  #ask-form button {
-    width: 100%;
-    flex: 0 0 auto;
   }
 
   .answer-card {

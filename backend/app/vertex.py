@@ -13,18 +13,28 @@ from .config import Settings
 from .index_store import PageEntry
 
 _ANSWER_PROMPT = """Tu réponds en français à une question sur une revue technique \
-automobile (Peugeot 106 / Citroën Saxo), à partir UNIQUEMENT des extraits de pages \
-fournis ci-dessous.
+automobile, à partir UNIQUEMENT des extraits de pages fournis ci-dessous.
 
+La revue technique fournie est rédigée pour la Citroën Saxo, mais la Peugeot 106 est \
+mécaniquement identique (même plateforme, même mécanique, mêmes pièces — ce sont des \
+"voitures jumelles"). Si la question porte sur une Peugeot 106, considère les extraits \
+parlant de la Saxo comme pertinents et réponds avec les informations qu'ils contiennent, \
+sauf si un extrait indique explicitement une différence entre les deux modèles. Le fait \
+que la question mentionne "106" et que les extraits mentionnent "Saxo" (ou inversement) \
+ne doit JAMAIS, à lui seul, faire considérer qu'il s'agit d'un véhicule différent.
+{vehicle_line}
 Réponds UNIQUEMENT avec un objet JSON valide (pas de balises markdown), avec exactement \
 ces clés :
 - "found_in_rta" : true si les extraits fournis permettent réellement de répondre à la \
 question posée, false si ce n'est pas le cas (sujet non couvert, extraits hors sujet, \
-véhicule différent, etc.). Ne mets pas true juste parce que les extraits parlent du même \
-thème général — il faut qu'ils répondent vraiment à la question.
+etc.). Ne mets pas true juste parce que les extraits parlent du même thème général — il \
+faut qu'ils répondent vraiment à la question. Ne mets PAS false au seul motif que la \
+question parle de la 106 et les extraits de la Saxo (ou inversement).
 - "answer" : si found_in_rta est true, la réponse à la question, concise et directe, en \
-citant systématiquement le(s) numéro(s) de page utilisé(s) (ex : "(page 42)"). Si \
-found_in_rta est false, une chaîne vide "".
+citant systématiquement le(s) numéro(s) de page utilisé(s) (ex : "(page 42)"). Si les \
+extraits distinguent plusieurs versions/motorisations et que la question précise une \
+version, privilégie l'information correspondant à cette version tout en mentionnant les \
+autres si elles sont proches dans le texte. Si found_in_rta est false, une chaîne vide "".
 - "cited_pages" : si found_in_rta est true, la liste des numéros de page (parmi ceux des \
 extraits fournis) RÉELLEMENT utilisés pour construire la réponse — uniquement celles qui \
 contiennent l'information demandée, pas toutes les pages fournies. Liste vide sinon.
@@ -41,7 +51,7 @@ technique officielle disponible ne couvre pas cette question. Réponds en franç
 partir d'une recherche web réelle, en t'appuyant sur des sources fiables (forums \
 automobiles reconnus, documentation constructeur, sites de pièces détachées). Si tu \
 n'es pas sûr, dis-le clairement plutôt que d'inventer une réponse.
-
+{vehicle_line}
 Question : {query}
 """
 
@@ -79,10 +89,18 @@ def embed_query(settings: Settings, text: str) -> np.ndarray:
     return vector / norm if norm > 0 else vector
 
 
-def generate_answer(settings: Settings, query: str, pages: list[PageEntry]) -> RtaAnswer:
+def _vehicle_line(vehicle: str | None) -> str:
+    if not vehicle:
+        return ""
+    return f"\nVersion du véhicule précisée par l'utilisateur : {vehicle}.\n"
+
+
+def generate_answer(
+    settings: Settings, query: str, pages: list[PageEntry], vehicle: str | None = None
+) -> RtaAnswer:
     client = _client(settings)
     context = "\n\n".join(f"--- Page {p.page_label} ---\n{p.text}" for p in pages)
-    prompt = _ANSWER_PROMPT.format(query=query, context=context)
+    prompt = _ANSWER_PROMPT.format(query=query, context=context, vehicle_line=_vehicle_line(vehicle))
     response = client.models.generate_content(
         model=settings.gemini_model,
         contents=prompt,
@@ -100,11 +118,13 @@ def generate_answer(settings: Settings, query: str, pages: list[PageEntry]) -> R
     )
 
 
-def generate_web_answer(settings: Settings, query: str) -> tuple[str, list[WebSourceInfo]]:
+def generate_web_answer(
+    settings: Settings, query: str, vehicle: str | None = None
+) -> tuple[str, list[WebSourceInfo]]:
     client = _client(settings)
     response = client.models.generate_content(
         model=settings.gemini_model,
-        contents=_WEB_ANSWER_PROMPT.format(query=query),
+        contents=_WEB_ANSWER_PROMPT.format(query=query, vehicle_line=_vehicle_line(vehicle)),
         config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())]),
     )
     answer = response.text or ""

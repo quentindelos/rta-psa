@@ -9,14 +9,16 @@ router = APIRouter()
 
 
 @router.get("/ask", response_model=AskResponse)
-def ask(q: str, k: int | None = None, settings: Settings = Depends(get_settings)) -> AskResponse:
+def ask(
+    q: str, vehicle: str | None = None, k: int | None = None, settings: Settings = Depends(get_settings)
+) -> AskResponse:
     top_k = k or settings.top_k_default
     query_vector = embed_query(settings, q)
     hits = index_store.search(query_vector, top_k)
 
     if hits:
         pages = [hit.page for hit in hits]
-        result = generate_answer(settings, q, pages)
+        result = generate_answer(settings, q, pages, vehicle)
         if result.found:
             cited = set(result.cited_pages)
             # Ne garde que les pages effectivement citées dans la réponse — sinon on
@@ -35,7 +37,7 @@ def ask(q: str, k: int | None = None, settings: Settings = Depends(get_settings)
             ]
             return AskResponse(query=q, answer=result.answer, answer_origin="rta", sources=sources)
 
-    answer, web_sources = generate_web_answer(settings, q)
+    answer, web_sources = generate_web_answer(settings, q, vehicle)
     return AskResponse(
         query=q,
         answer=answer,

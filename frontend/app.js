@@ -1,5 +1,6 @@
 const form = document.getElementById("ask-form");
 const queryInput = document.getElementById("query");
+const vehicleSelect = document.getElementById("vehicle");
 const submitBtn = document.getElementById("submit-btn");
 const statusEl = document.getElementById("status");
 const answerCard = document.getElementById("answer-card");
@@ -80,7 +81,10 @@ form.addEventListener("submit", async (event) => {
   statusEl.hidden = true;
 
   try {
-    const data = await fetchJSON(`/api/ask?q=${encodeURIComponent(query)}`);
+    const vehicle = vehicleSelect.value;
+    const params = new URLSearchParams({ q: query });
+    if (vehicle) params.set("vehicle", vehicle);
+    const data = await fetchJSON(`/api/ask?${params.toString()}`);
     renderAnswer(data);
     saveQueryToHistory(query);
   } catch (err) {

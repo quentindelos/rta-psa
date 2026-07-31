@@ -32,11 +32,29 @@
       <span>106, Saxo, 205, 206, 306 — entraide et tutos entre propriétaires</span>
     </span>
     <span class="discord-cta">Rejoindre →</span>
-    <span class="discord-compact-label">Discord</span>
   </a>
 
   <main>
     <form id="ask-form">
+      <select id="vehicle" name="vehicle" aria-label="Véhicule concerné">
+        <option value="">Véhicule non précisé (toutes versions)</option>
+        <optgroup label="Citroën Saxo">
+          <option value="Citroën Saxo 1.0i">Saxo 1.0i</option>
+          <option value="Citroën Saxo 1.1i">Saxo 1.1i</option>
+          <option value="Citroën Saxo 1.4i">Saxo 1.4i</option>
+          <option value="Citroën Saxo 1.6i">Saxo 1.6i</option>
+          <option value="Citroën Saxo 1.6i 16v (VTS)">Saxo 1.6i 16v (VTS)</option>
+          <option value="Citroën Saxo Diesel">Saxo Diesel</option>
+        </optgroup>
+        <optgroup label="Peugeot 106">
+          <option value="Peugeot 106 1.0i">106 1.0i</option>
+          <option value="Peugeot 106 1.1i">106 1.1i</option>
+          <option value="Peugeot 106 1.4i">106 1.4i</option>
+          <option value="Peugeot 106 1.6i">106 1.6i</option>
+          <option value="Peugeot 106 1.6i 16v (S16 / Rallye)">106 1.6i 16v (S16 / Rallye)</option>
+          <option value="Peugeot 106 Diesel">106 Diesel</option>
+        </optgroup>
+      </select>
       <input
         type="text"
         id="query"
