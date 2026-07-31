@@ -22,6 +22,14 @@ parlant de la Saxo comme pertinents et réponds avec les informations qu'ils con
 sauf si un extrait indique explicitement une différence entre les deux modèles. Le fait \
 que la question mentionne "106" et que les extraits mentionnent "Saxo" (ou inversement) \
 ne doit JAMAIS, à lui seul, faire considérer qu'il s'agit d'un véhicule différent.
+
+Certaines motorisations existent en plusieurs variantes/normes moteur avec des \
+caractéristiques différentes (ex : le 1.6i 16v des Saxo VTS / 106 S16-Rallye existe en \
+versions moteur TU5J4 L3 et TU5J4 L4, avec des chiffres parfois différents). Si la \
+question (ou le véhicule précisé) ne donne pas la variante exacte et que les extraits \
+distinguent plusieurs valeurs selon la version moteur, ne choisis pas arbitrairement une \
+seule valeur comme si elle était universelle : dis clairement qu'il existe plusieurs \
+versions avec des valeurs différentes, et précise lesquelles si les extraits le permettent.
 {vehicle_line}
 Réponds UNIQUEMENT avec un objet JSON valide (pas de balises markdown), avec exactement \
 ces clés :
@@ -38,8 +46,10 @@ autres si elles sont proches dans le texte. Dès que la réponse contient plusie
 éléments du même type (ex : légende d'un schéma avec repères, liste de \
 caractéristiques/valeurs, liste de pièces), présente-les sous forme de tableau Markdown \
 (en-tête + lignes séparées par des "|") plutôt qu'une phrase avec virgules — c'est \
-beaucoup plus lisible. Garde une phrase normale pour tout le reste (réponse courte, \
-explication, procédure). Si found_in_rta est false, une chaîne vide "".
+beaucoup plus lisible. Ne mets JAMAIS de colonne "Source"/"Page" dans ce tableau : les \
+pages utilisées sont déjà indiquées séparément, une colonne source dans le tableau \
+serait redondante (et souvent vide). Garde une phrase normale pour tout le reste \
+(réponse courte, explication, procédure). Si found_in_rta est false, une chaîne vide "".
 - "cited_pages" : si found_in_rta est true, la liste des numéros de page (parmi ceux des \
 extraits fournis) RÉELLEMENT utilisés pour construire la réponse — uniquement celles qui \
 contiennent l'information demandée, pas toutes les pages fournies. Liste vide sinon.
@@ -57,7 +67,15 @@ partir d'une recherche web réelle, en t'appuyant sur des sources fiables (forum
 automobiles reconnus, documentation constructeur, sites de pièces détachées). Si tu \
 n'es pas sûr, dis-le clairement plutôt que d'inventer une réponse. Dès que la réponse \
 contient plusieurs éléments du même type (liste de pièces, caractéristiques, valeurs), \
-présente-les sous forme de tableau Markdown plutôt qu'une phrase avec virgules.
+présente-les sous forme de tableau Markdown plutôt qu'une phrase avec virgules — mais \
+sans colonne "Source" dans ce tableau (les sources utilisées sont listées séparément \
+après ta réponse, pas besoin de les répéter en colonne). Certaines motorisations \
+existent en plusieurs variantes/normes moteur aux caractéristiques différentes (ex : le \
+1.6i 16v des Saxo VTS / 106 S16-Rallye existe en versions moteur TU5J4 L3 et TU5J4 L4) : \
+si tes sources donnent des valeurs différentes pour une même caractéristique sans que la \
+question précise la version exacte, n'en choisis pas une arbitrairement — explique que \
+la valeur dépend de la version moteur et donne les différentes valeurs trouvées avec, si \
+possible, à quelle version chacune correspond.
 {vehicle_line}
 Question : {query}
 """

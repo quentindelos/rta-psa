@@ -190,7 +190,7 @@ function renderAnswer(data) {
 
   if (data.answer_origin === "web") {
     originBadge.className = "origin-badge origin-badge--web";
-    originBadge.textContent = "⚠ Non trouvé dans la RTA — réponse IA basée sur une recherche web";
+    originBadge.textContent = "⚠ Non trouvé dans la RTA — réponse basée sur le web";
     sourcesEl.innerHTML = "";
     renderWebSources(data.web_sources);
   } else {
