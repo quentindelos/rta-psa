@@ -282,6 +282,19 @@ button:disabled {
   max-height: 100%;
 }
 
+footer {
+  max-width: 700px;
+  margin: 2rem auto 2.5rem;
+  padding: 0 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+footer a {
+  color: var(--accent);
+}
+
 /* Tablette */
 @media (max-width: 700px) {
   main,
