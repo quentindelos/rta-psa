@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RTA 106 / Saxo — Recherche</title>
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header>
+    <h1>Revue technique 106 / Saxo</h1>
+    <p class="subtitle">Recherche dans les pages numérisées (texte et schémas électriques)</p>
+  </header>
+
+  <main>
+    <form id="search-form">
+      <input
+        type="text"
+        id="query"
+        name="q"
+        placeholder="ex : couleur du fil du démarreur"
+        autocomplete="off"
+        required
+      />
+      <div class="mode-toggle">
+        <label><input type="radio" name="mode" value="search" checked /> Extraits</label>
+        <label><input type="radio" name="mode" value="ask" /> Question</label>
+      </div>
+      <button type="submit">Chercher</button>
+    </form>
+
+    <div id="answer" class="answer" hidden></div>
+    <ul id="results" class="results"></ul>
+  </main>
+
+  <div id="lightbox" class="lightbox" hidden>
+    <img id="lightbox-img" src="" alt="Schéma en plein écran" />
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

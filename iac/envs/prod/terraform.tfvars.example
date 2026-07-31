@@ -1,0 +1,8 @@
+project_id          = "rta-psa"
+region              = "europe-west1"
+domain_name         = "quentindelos.fr"
+subdomain           = "rta-psa"
+tfstate_bucket_name = "rta-psa-terraform-state"
+gemini_model        = "gemini-2.5-flash"
+embedding_model     = "text-multilingual-embedding-002"
+admin_token         = "change-me-to-a-real-secret"

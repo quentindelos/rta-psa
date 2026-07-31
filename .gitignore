@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Env files
+.env
+.env.*
+!*.env.example
+
+# Ingestion working data (volumineux, régénérable, pas versionné)
+ingestion/data/
+
+# Terraform
+iac/**/.terraform/
+iac/**/*.tfstate
+iac/**/*.tfstate.backup
+iac/**/.terraform.lock.hcl
+iac/**/terraform.tfvars
+*.pem
+*.key
+*account.json
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
