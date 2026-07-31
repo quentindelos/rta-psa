@@ -9,6 +9,22 @@ const sourcesEl = document.getElementById("sources");
 const webSourcesEl = document.getElementById("web-sources");
 const lightbox = document.getElementById("lightbox");
 const lightboxImg = document.getElementById("lightbox-img");
+const themeToggle = document.getElementById("theme-toggle");
+
+const THEME_KEY = "rta-psa-theme";
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  themeToggle.textContent = theme === "dark" ? "☀️" : "🌙";
+}
+
+applyTheme(localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light");
+
+themeToggle.addEventListener("click", () => {
+  const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+});
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -54,7 +70,7 @@ function showStatus(message, isError) {
 function renderAnswer(data) {
   statusEl.hidden = true;
   answerCard.hidden = false;
-  answerText.innerHTML = escapeHtml(data.answer).replace(/\n/g, "<br>");
+  answerText.innerHTML = renderMarkdown(data.answer);
 
   if (data.answer_origin === "web") {
     originBadge.className = "origin-badge origin-badge--web";
@@ -149,4 +165,68 @@ function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
+}
+
+function inlineFormat(line) {
+  // gras uniquement (**texte**) — c'est le seul style markdown que Gemini utilise ici
+  return escapeHtml(line).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+}
+
+// Petit moteur markdown maison : gras, listes numérotées/à puces, paragraphes.
+// Volontairement minimal (pas de lib externe) pour ce que Gemini produit réellement.
+function renderMarkdown(raw) {
+  const lines = (raw || "").split("\n");
+  const html = [];
+  let paragraph = [];
+  let i = 0;
+
+  const flushParagraph = () => {
+    if (paragraph.length) {
+      html.push(`<p>${paragraph.join("<br>")}</p>`);
+      paragraph = [];
+    }
+  };
+
+  while (i < lines.length) {
+    const trimmed = lines[i].trim();
+
+    if (trimmed === "") {
+      flushParagraph();
+      i++;
+      continue;
+    }
+
+    const ordered = trimmed.match(/^\d+\.\s+(.*)$/);
+    if (ordered) {
+      flushParagraph();
+      const items = [];
+      while (i < lines.length) {
+        const m = lines[i].trim().match(/^\d+\.\s+(.*)$/);
+        if (!m) break;
+        items.push(`<li>${inlineFormat(m[1])}</li>`);
+        i++;
+      }
+      html.push(`<ol>${items.join("")}</ol>`);
+      continue;
+    }
+
+    const bulleted = trimmed.match(/^[*-]\s+(.*)$/);
+    if (bulleted) {
+      flushParagraph();
+      const items = [];
+      while (i < lines.length) {
+        const m = lines[i].trim().match(/^[*-]\s+(.*)$/);
+        if (!m) break;
+        items.push(`<li>${inlineFormat(m[1])}</li>`);
+        i++;
+      }
+      html.push(`<ul>${items.join("")}</ul>`);
+      continue;
+    }
+
+    paragraph.push(inlineFormat(trimmed));
+    i++;
+  }
+  flushParagraph();
+  return html.join("");
 }
