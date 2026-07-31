@@ -23,8 +23,8 @@ def load_index() -> None:
     index_store.load(get_settings())
 
 
-@app.get("/healthz")
-def healthz() -> dict[str, str]:
+@app.get("/api/health")
+def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
