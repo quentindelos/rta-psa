@@ -43,6 +43,28 @@ resource "google_project_iam_member" "run_sa_vertex_user" {
   member  = "serviceAccount:${google_service_account.run_sa.email}"
 }
 
+# Jeton admin de /api/admin/reload-index : stocké dans Secret Manager plutôt
+# qu'en variable d'environnement en clair (visible sinon dans la console Cloud
+# Run et via `gcloud run services describe` par quiconque a un accès lecture).
+resource "google_secret_manager_secret" "admin_token" {
+  secret_id = "${var.project_id}-admin-token"
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "admin_token" {
+  secret      = google_secret_manager_secret.admin_token.id
+  secret_data = var.admin_token
+}
+
+resource "google_secret_manager_secret_iam_member" "run_sa_reads_admin_token" {
+  secret_id = google_secret_manager_secret.admin_token.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.run_sa.email}"
+}
+
 resource "google_cloud_run_v2_service" "app" {
   name     = var.project_id
   location = var.region
@@ -78,8 +100,13 @@ resource "google_cloud_run_v2_service" "app" {
         value = var.embedding_model
       }
       env {
-        name  = "ADMIN_TOKEN"
-        value = var.admin_token
+        name = "ADMIN_TOKEN"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.admin_token.secret_id
+            version = "latest"
+          }
+        }
       }
     }
 
@@ -97,6 +124,7 @@ resource "google_cloud_run_v2_service" "app" {
   depends_on = [
     google_storage_bucket_iam_member.run_sa_reads_index,
     google_project_iam_member.run_sa_vertex_user,
+    google_secret_manager_secret_iam_member.run_sa_reads_admin_token,
   ]
 }
 
