@@ -14,6 +14,8 @@ const themeToggle = document.getElementById("theme-toggle");
 const historyEl = document.getElementById("history");
 const historyListEl = document.getElementById("history-list");
 const historyClearBtn = document.getElementById("history-clear");
+const searchStepsEl = document.getElementById("search-steps");
+const searchStepsList = document.getElementById("search-steps-list");
 
 const THEME_KEY = "rta-psa-theme";
 const HISTORY_KEY = "rta-psa-history";
@@ -71,49 +73,72 @@ themeToggle.addEventListener("click", () => {
   applyTheme(next);
 });
 
-form.addEventListener("submit", async (event) => {
+let currentEventSource = null;
+
+form.addEventListener("submit", (event) => {
   event.preventDefault();
   const query = queryInput.value.trim();
   if (!query) return;
 
+  if (currentEventSource) {
+    currentEventSource.close();
+    currentEventSource = null;
+  }
+
   setLoading(true);
   answerCard.hidden = true;
-  statusEl.hidden = true;
+  resetSearchSteps();
+  showStatus("Recherche en cours…", false);
 
-  try {
-    const vehicle = vehicleSelect.value;
-    const params = new URLSearchParams({ q: query });
-    if (vehicle) params.set("vehicle", vehicle);
-    const data = await fetchJSON(`/api/ask?${params.toString()}`);
-    renderAnswer(data);
+  const vehicle = vehicleSelect.value;
+  const params = new URLSearchParams({ q: query });
+  if (vehicle) params.set("vehicle", vehicle);
+
+  const es = new EventSource(`/api/ask/stream?${params.toString()}`);
+  currentEventSource = es;
+
+  es.addEventListener("step", (event) => {
+    addSearchStep(JSON.parse(event.data).message);
+  });
+
+  es.addEventListener("result", (event) => {
+    es.close();
+    currentEventSource = null;
+    renderAnswer(JSON.parse(event.data));
     saveQueryToHistory(query);
-  } catch (err) {
-    showStatus(`Erreur : ${err.message}`, true);
-  } finally {
     setLoading(false);
-  }
-});
+  });
 
-async function fetchJSON(url) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
-  }
-  return response.json();
-}
+  es.onerror = () => {
+    es.close();
+    currentEventSource = null;
+    showStatus("Erreur : la recherche a échoué.", true);
+    setLoading(false);
+  };
+});
 
 function setLoading(isLoading) {
   submitBtn.disabled = isLoading;
   submitBtn.textContent = isLoading ? "Recherche…" : "Chercher";
-  if (isLoading) {
-    showStatus("Recherche en cours…", false);
-  }
 }
 
 function showStatus(message, isError) {
   statusEl.hidden = false;
   statusEl.textContent = message;
   statusEl.classList.toggle("status-error", isError);
+}
+
+function resetSearchSteps() {
+  searchStepsList.innerHTML = "";
+  searchStepsEl.hidden = true;
+}
+
+function addSearchStep(message) {
+  statusEl.hidden = true;
+  searchStepsEl.hidden = false;
+  const li = document.createElement("li");
+  li.textContent = message;
+  searchStepsList.appendChild(li);
 }
 
 function renderAnswer(data) {

@@ -277,6 +277,54 @@ button:disabled {
   color: var(--error);
 }
 
+.search-steps {
+  margin-top: 1.5rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 10px;
+  border: 1px dashed var(--border);
+  background: var(--card-bg);
+}
+
+.search-steps-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.search-steps-list {
+  margin: 0;
+  padding-left: 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.search-steps-list li {
+  animation: search-step-in 0.25s ease;
+}
+
+@keyframes search-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-steps-list li {
+    animation: none;
+  }
+}
+
 .answer-card {
   margin-top: 1.5rem;
   padding: 1.25rem 1.4rem;
