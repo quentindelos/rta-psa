@@ -49,12 +49,20 @@ body {
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+/* align-self:center + width:100% (instead of margin:0 auto) because body is
+   now a flex column (sticky footer): auto margins on a flex item absorb
+   available space instead of letting it stretch, which silently shrank main
+   down to its content width. */
 main {
   flex: 1 0 auto;
+  align-self: center;
+  width: 100%;
 }
 
 footer {
   flex-shrink: 0;
+  align-self: center;
+  width: 100%;
 }
 
 .theme-toggle {
@@ -96,9 +104,11 @@ h1 {
 .discord-banner {
   display: flex;
   align-items: center;
+  align-self: center;
   gap: 0.9rem;
+  width: 100%;
   max-width: 960px;
-  margin: 0 auto 1.75rem;
+  margin: 0 0 1.75rem;
   padding: 0.9rem 1.2rem;
   border-radius: 12px;
   background: var(--discord);
@@ -146,7 +156,7 @@ h1 {
 
 main {
   max-width: 960px;
-  margin: 0 auto;
+  margin: 0;
   padding: 0 1rem 3rem;
 }
 
@@ -390,7 +400,7 @@ button:disabled {
 
 footer {
   max-width: 960px;
-  margin: 2rem auto 2.5rem;
+  margin: 2rem 0 2.5rem;
   padding: 0 1rem;
   text-align: center;
   font-size: 0.85rem;
@@ -456,7 +466,8 @@ footer a {
   }
 
   .discord-banner {
-    margin: 0 0.75rem 1.25rem;
+    width: calc(100% - 1.5rem);
+    margin: 0 0 1.25rem;
     padding: 0.8rem 0.9rem;
   }
 
@@ -488,6 +499,7 @@ footer a {
   #query,
   #ask-form button {
     width: 100%;
+    flex: 0 0 auto;
   }
 
   .answer-card {
