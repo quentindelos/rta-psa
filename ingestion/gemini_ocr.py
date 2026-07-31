@@ -1,11 +1,11 @@
 """OCR d'une page via Gemini (Vertex AI) : transcription du texte + détection/description
-des schémas électriques, avec la zone (bounding box) du schéma sur la page pour pouvoir
-la recadrer ensuite."""
+des schémas électriques (une page peut en contenir plusieurs), avec la zone (bounding box)
+de chaque schéma sur la page pour pouvoir les recadrer ensuite."""
 from __future__ import annotations
 
 import json
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from google import genai
@@ -19,15 +19,23 @@ Réponds UNIQUEMENT avec un objet JSON valide (pas de balises markdown), avec ex
 ces clés :
 - "text" : la transcription fidèle de tout le texte visible sur la page, en conservant \
 la structure (titres, listes, tableaux) autant que possible.
-- "has_schematic" : true si la page contient un schéma électrique (câblage, connecteurs, \
-fils codés par couleur), false sinon.
-- "schematic_description" : si has_schematic est true, une description en prose détaillée \
-du schéma (composants, codes couleur des fils, connexions), suffisamment précise pour \
-répondre à une question du type "de quelle couleur est le fil qui alimente X" rien qu'en \
-la lisant. Sinon null.
-- "schematic_box" : si has_schematic est true, la boîte englobante du schéma UNIQUEMENT \
-(pas le texte autour) sur la page, au format [y_min, x_min, y_max, x_max] normalisé entre \
-0 et 1000 par rapport aux dimensions de l'image entière. Sinon null."""
+- "schematics" : une liste (vide si aucun) avec un objet par schéma électrique distinct \
+(câblage, connecteurs, fils codés par couleur) présent sur la page — une page peut en \
+contenir plusieurs, chacun doit être listé séparément. Chaque objet a :
+  - "description" : description en prose détaillée du schéma (composants, codes couleur \
+des fils, connexions), suffisamment précise pour répondre à une question du type "de \
+quelle couleur est le fil qui alimente X" rien qu'en la lisant.
+  - "box" : la boîte englobante de CE schéma UNIQUEMENT (pas le texte autour, pas les \
+autres schémas de la page), au format [y_min, x_min, y_max, x_max] normalisé entre 0 et \
+1000 par rapport aux dimensions de l'image entière.
+- "printed_page_number" : le numéro de page tel qu'il est imprimé sur le document \
+(généralement en en-tête ou en pied de page), sous forme d'entier. null si aucun numéro \
+n'est visible ou lisible sur la page."""
+
+
+class _SchematicSchema(BaseModel):
+    description: str
+    box: list[int]
 
 
 class _OcrSchema(BaseModel):
@@ -36,32 +44,54 @@ class _OcrSchema(BaseModel):
     ce qui casse le parsing en aval."""
 
     text: str
-    has_schematic: bool
-    schematic_description: str | None = None
-    schematic_box: list[int] | None = None
+    schematics: list[_SchematicSchema] = []
+    printed_page_number: int | None = None
+
+
+@dataclass
+class Schematic:
+    description: str
+    box: list[int] | None
 
 
 @dataclass
 class OcrResult:
     text: str
-    has_schematic: bool
-    schematic_box: list[int] | None
+    schematics: list[Schematic] = field(default_factory=list)
+    printed_page_number: int | None = None
+
+    @property
+    def has_schematic(self) -> bool:
+        return len(self.schematics) > 0
 
 
 def _parse_response(raw_text: str) -> OcrResult:
     data = json.loads(raw_text)
     text = data.get("text", "") or ""
-    has_schematic = bool(data.get("has_schematic", False))
-    schematic_description = data.get("schematic_description")
-    schematic_box = data.get("schematic_box")
 
-    if has_schematic and schematic_description:
-        text = f"{text}\n\n### Description du schéma\n{schematic_description}"
+    schematics = []
+    for raw in data.get("schematics") or []:
+        if not isinstance(raw, dict):
+            continue
+        description = raw.get("description")
+        box = raw.get("box")
+        if not description:
+            continue
+        if not (isinstance(box, list) and len(box) == 4):
+            box = None
+        schematics.append(Schematic(description=description, box=box))
 
-    if not (has_schematic and isinstance(schematic_box, list) and len(schematic_box) == 4):
-        schematic_box = None
+    if schematics:
+        descriptions = "\n\n".join(
+            f"### Description du schéma {i + 1}\n{s.description}" for i, s in enumerate(schematics)
+        )
+        text = f"{text}\n\n{descriptions}"
 
-    return OcrResult(text=text, has_schematic=has_schematic, schematic_box=schematic_box)
+    printed_page_number = data.get("printed_page_number")
+    if not isinstance(printed_page_number, int):
+        printed_page_number = None
+
+    return OcrResult(text=text, schematics=schematics, printed_page_number=printed_page_number)
 
 
 def ocr_page(client: genai.Client, model: str, image_path: Path, max_retries: int = 3) -> OcrResult:

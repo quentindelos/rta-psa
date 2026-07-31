@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -26,7 +26,7 @@ class PageEntry:
     text: str
     image_filename: str
     has_schematic: bool
-    schematic_image_filename: str | None = None
+    schematic_image_filenames: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

@@ -137,25 +137,30 @@ function renderSources(sources) {
   }
 
   sourcesEl.innerHTML = sources
-    .map((source) => {
-      if (source.schematic_image_url) {
-        return `
-          <figure class="source-card source-card--schematic">
-            <img
-              class="source-image"
-              src="${source.schematic_image_url}"
-              alt="Schéma, page ${source.page_num}"
-              loading="lazy"
-              data-full="${source.schematic_image_url}"
-            />
-            <figcaption>
-              Schéma — page ${source.page_num}
-              <a class="full-page-link" data-full="${source.page_image_url}" href="#">page complète</a>
-            </figcaption>
-          </figure>
-        `;
+    .flatMap((source) => {
+      if (source.schematic_image_urls && source.schematic_image_urls.length > 0) {
+        return source.schematic_image_urls.map((url, i) => {
+          const label =
+            source.schematic_image_urls.length > 1 ? `Schéma ${i + 1} — page ${source.page_num}` : `Schéma — page ${source.page_num}`;
+          return `
+            <figure class="source-card source-card--schematic">
+              <img
+                class="source-image"
+                src="${url}"
+                alt="${label}"
+                loading="lazy"
+                data-full="${url}"
+              />
+              <figcaption>
+                ${label}
+                <a class="full-page-link" data-full="${source.page_image_url}" href="#">page complète</a>
+              </figcaption>
+            </figure>
+          `;
+        });
       }
-      return `
+      return [
+        `
         <figure class="source-card">
           <img
             class="source-image"
@@ -166,7 +171,8 @@ function renderSources(sources) {
           />
           <figcaption>Page ${source.page_num}</figcaption>
         </figure>
-      `;
+      `,
+      ];
     })
     .join("");
 

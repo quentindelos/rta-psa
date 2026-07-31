@@ -13,8 +13,19 @@ import config
 
 
 def rsync(src: Path, dest: str) -> None:
-    print(f"→ gcloud storage rsync {src} {dest}")
-    subprocess.run(["gcloud", "storage", "rsync", "--recursive", str(src), dest], check=True)
+    print(f"→ gcloud storage rsync {src} {dest} (miroir exact, supprime le superflu côté GCS)")
+    subprocess.run(
+        [
+            "gcloud",
+            "storage",
+            "rsync",
+            "--recursive",
+            "--delete-unmatched-destination-objects",
+            str(src),
+            dest,
+        ],
+        check=True,
+    )
 
 
 def main() -> None:

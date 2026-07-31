@@ -61,19 +61,43 @@ def main() -> None:
     index.gemini_model = cfg.gemini_model
 
     failed_pages = []
+    uncropped_schematics = []
+    page_num_mismatches = []
     for page_num in to_process:
         image_path = pages_dir / pdf_to_pages.PAGE_FILENAME.format(page_num)
         try:
             print(f"→ OCR page {page_num} ...")
             result = gemini_ocr.ocr_page(client, cfg.gemini_model, image_path)
 
-            schematic_image_filename = None
-            if result.has_schematic and result.schematic_box:
-                schematic_filename = f"page_{page_num:03d}_schema.jpg"
-                schematic_path = pages_dir / schematic_filename
-                if crop.crop_schematic(image_path, result.schematic_box, schematic_path):
-                    schematic_image_filename = schematic_filename
-                    print(f"  → schéma recadré : {schematic_filename}")
+            # ATTENTION : le numéro imprimé lu par Gemini n'est PAS forcément une pagination
+            # globale continue — certains documents redémarrent la numérotation à 1 par
+            # chapitre/section. On ne s'en sert donc que pour signaler un écart (l'ordre des
+            # scans de ce lot semble décalé), jamais pour renommer/identifier le fichier : un
+            # renommage aveugle a déjà provoqué des collisions et perdu des pages en test.
+            if result.printed_page_number is not None and result.printed_page_number != page_num:
+                print(
+                    f"  ⚠ numéro imprimé détecté = {result.printed_page_number}, ne correspond pas "
+                    f"au numéro de fichier assigné ({page_num}) — peut être normal (pagination par "
+                    "chapitre) ou révéler un décalage dans l'ordre des scans"
+                )
+                page_num_mismatches.append((page_num, result.printed_page_number))
+
+            # Nettoie d'éventuels schémas d'une exécution précédente pour cette page (--force) :
+            # sinon un schéma qui disparaît d'une passe à l'autre laisse un fichier orphelin.
+            for stale in pages_dir.glob(f"page_{page_num:03d}_schema_*.jpg"):
+                stale.unlink()
+
+            schematic_image_filenames = []
+            for i, schematic in enumerate(result.schematics, start=1):
+                if schematic.box:
+                    schematic_filename = f"page_{page_num:03d}_schema_{i:02d}.jpg"
+                    schematic_path = pages_dir / schematic_filename
+                    if crop.crop_schematic(image_path, schematic.box, schematic_path):
+                        schematic_image_filenames.append(schematic_filename)
+                        print(f"  → schéma {i} recadré : {schematic_filename}")
+                        continue
+                print(f"  ⚠ schéma {i} détecté mais non recadré (boîte absente ou trop petite) — à vérifier à la main")
+                uncropped_schematics.append((page_num, i))
 
             print(f"→ Embedding page {page_num} ...")
             vector = embeddings.embed_text(client, cfg.embedding_model, result.text)
@@ -83,7 +107,7 @@ def main() -> None:
                 text=result.text,
                 image_filename=image_path.name,
                 has_schematic=result.has_schematic,
-                schematic_image_filename=schematic_image_filename,
+                schematic_image_filenames=schematic_image_filenames,
             )
             index.upsert(entry, vector)
             # Sauvegarde après chaque page : un crash en cours de lot ne perd
@@ -98,6 +122,16 @@ def main() -> None:
         print(
             f"⚠ {len(failed_pages)} page(s) en échec : {failed_pages} — "
             "relance la même commande pour ne réessayer que celles-ci."
+        )
+    if uncropped_schematics:
+        print(
+            f"⚠ {len(uncropped_schematics)} schéma(s) détecté(s) mais non recadré(s) "
+            f"(page, index du schéma) : {uncropped_schematics} — à vérifier/recadrer à la main avant l'upload."
+        )
+    if page_num_mismatches:
+        print(
+            f"⚠ {len(page_num_mismatches)} page(s) où le numéro imprimé diverge du numéro assigné "
+            f"(fichier, imprimé) : {page_num_mismatches} — vérifier l'ordre des scans ou --start-page."
         )
     print(f"→ Prochaine étape : python upload_to_gcs.py --workdir {args.workdir}")
 

@@ -7,7 +7,7 @@ from pydantic import BaseModel
 class Source(BaseModel):
     page_num: int
     page_image_url: str
-    schematic_image_url: str | None = None
+    schematic_image_urls: list[str] = []
 
 
 class WebSource(BaseModel):

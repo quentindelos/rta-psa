@@ -22,11 +22,10 @@ def ask(q: str, k: int | None = None, settings: Settings = Depends(get_settings)
                 Source(
                     page_num=page.page_num,
                     page_image_url=f"https://storage.googleapis.com/{settings.gcs_bucket_pages}/{page.image_filename}",
-                    schematic_image_url=(
-                        f"https://storage.googleapis.com/{settings.gcs_bucket_pages}/{page.schematic_image_filename}"
-                        if page.schematic_image_filename
-                        else None
-                    ),
+                    schematic_image_urls=[
+                        f"https://storage.googleapis.com/{settings.gcs_bucket_pages}/{filename}"
+                        for filename in page.schematic_image_filenames
+                    ],
                 )
                 for page in pages
             ]
