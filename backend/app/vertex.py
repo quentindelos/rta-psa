@@ -34,7 +34,12 @@ question parle de la 106 et les extraits de la Saxo (ou inversement).
 citant systématiquement le(s) numéro(s) de page utilisé(s) (ex : "(page 42)"). Si les \
 extraits distinguent plusieurs versions/motorisations et que la question précise une \
 version, privilégie l'information correspondant à cette version tout en mentionnant les \
-autres si elles sont proches dans le texte. Si found_in_rta est false, une chaîne vide "".
+autres si elles sont proches dans le texte. Dès que la réponse contient plusieurs \
+éléments du même type (ex : légende d'un schéma avec repères, liste de \
+caractéristiques/valeurs, liste de pièces), présente-les sous forme de tableau Markdown \
+(en-tête + lignes séparées par des "|") plutôt qu'une phrase avec virgules — c'est \
+beaucoup plus lisible. Garde une phrase normale pour tout le reste (réponse courte, \
+explication, procédure). Si found_in_rta est false, une chaîne vide "".
 - "cited_pages" : si found_in_rta est true, la liste des numéros de page (parmi ceux des \
 extraits fournis) RÉELLEMENT utilisés pour construire la réponse — uniquement celles qui \
 contiennent l'information demandée, pas toutes les pages fournies. Liste vide sinon.
@@ -50,7 +55,9 @@ des Peugeot 106, Citroën Saxo, Peugeot 205, Peugeot 206 et Peugeot 306. La revu
 technique officielle disponible ne couvre pas cette question. Réponds en français à \
 partir d'une recherche web réelle, en t'appuyant sur des sources fiables (forums \
 automobiles reconnus, documentation constructeur, sites de pièces détachées). Si tu \
-n'es pas sûr, dis-le clairement plutôt que d'inventer une réponse.
+n'es pas sûr, dis-le clairement plutôt que d'inventer une réponse. Dès que la réponse \
+contient plusieurs éléments du même type (liste de pièces, caractéristiques, valeurs), \
+présente-les sous forme de tableau Markdown plutôt qu'une phrase avec virgules.
 {vehicle_line}
 Question : {query}
 """

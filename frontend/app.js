@@ -252,6 +252,24 @@ function inlineFormat(line) {
   return escapeHtml(line).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 }
 
+const TABLE_ROW_RE = /^\|(.+)\|$/;
+const TABLE_SEPARATOR_RE = /^\|?(\s*:?-{2,}:?\s*\|)+\s*:?-{2,}:?\s*\|?$/;
+
+function splitTableRow(row) {
+  return row
+    .split("|")
+    .map((cell) => cell.trim())
+    .filter((cell, index, cells) => !(cell === "" && (index === 0 || index === cells.length - 1)));
+}
+
+function renderTable(header, rows) {
+  const thead = `<tr>${header.map((cell) => `<th>${inlineFormat(cell)}</th>`).join("")}</tr>`;
+  const tbody = rows
+    .map((row) => `<tr>${row.map((cell) => `<td>${inlineFormat(cell)}</td>`).join("")}</tr>`)
+    .join("");
+  return `<div class="answer-table-wrap"><table><thead>${thead}</thead><tbody>${tbody}</tbody></table></div>`;
+}
+
 // Petit moteur markdown maison : gras, listes numérotées/à puces, paragraphes.
 // Volontairement minimal (pas de lib externe) pour ce que Gemini produit réellement.
 function renderMarkdown(raw) {
@@ -278,6 +296,23 @@ function renderMarkdown(raw) {
     if (trimmed === "") {
       flushParagraph();
       i++;
+      continue;
+    }
+
+    const tableHeader = trimmed.match(TABLE_ROW_RE);
+    const tableSeparator = lines[i + 1] && lines[i + 1].trim();
+    if (tableHeader && tableSeparator && TABLE_SEPARATOR_RE.test(tableSeparator)) {
+      flushParagraph();
+      const header = splitTableRow(tableHeader[1]);
+      i += 2;
+      const rows = [];
+      while (i < lines.length) {
+        const m = lines[i].trim().match(TABLE_ROW_RE);
+        if (!m) break;
+        rows.push(splitTableRow(m[1]));
+        i++;
+      }
+      html.push(renderTable(header, rows));
       continue;
     }
 
