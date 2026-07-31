@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     embedding_model: str = "text-multilingual-embedding-002"
     top_k_default: int = 5
     admin_token: str = "change-me"
+    rta_confidence_threshold: float = 0.45
 
 
 @lru_cache

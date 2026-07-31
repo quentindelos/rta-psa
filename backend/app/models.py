@@ -1,4 +1,6 @@
 """Modèles de réponse de l'API."""
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -6,6 +8,11 @@ class Source(BaseModel):
     page_num: int
     page_image_url: str
     schematic_image_url: str | None = None
+
+
+class WebSource(BaseModel):
+    title: str
+    url: str
 
 
 class SearchResult(BaseModel):
@@ -23,4 +30,6 @@ class SearchResponse(BaseModel):
 class AskResponse(BaseModel):
     query: str
     answer: str
-    sources: list[Source]
+    answer_origin: Literal["rta", "web"]
+    sources: list[Source] = []
+    web_sources: list[WebSource] = []

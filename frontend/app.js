@@ -3,8 +3,10 @@ const queryInput = document.getElementById("query");
 const submitBtn = document.getElementById("submit-btn");
 const statusEl = document.getElementById("status");
 const answerCard = document.getElementById("answer-card");
+const originBadge = document.getElementById("origin-badge");
 const answerText = document.getElementById("answer-text");
 const sourcesEl = document.getElementById("sources");
+const webSourcesEl = document.getElementById("web-sources");
 const lightbox = document.getElementById("lightbox");
 const lightboxImg = document.getElementById("lightbox-img");
 
@@ -39,7 +41,7 @@ function setLoading(isLoading) {
   submitBtn.disabled = isLoading;
   submitBtn.textContent = isLoading ? "Recherche…" : "Chercher";
   if (isLoading) {
-    showStatus("Recherche dans la revue technique…", false);
+    showStatus("Recherche en cours…", false);
   }
 }
 
@@ -54,12 +56,26 @@ function renderAnswer(data) {
   answerCard.hidden = false;
   answerText.innerHTML = escapeHtml(data.answer).replace(/\n/g, "<br>");
 
-  if (data.sources.length === 0) {
+  if (data.answer_origin === "web") {
+    originBadge.className = "origin-badge origin-badge--web";
+    originBadge.textContent = "⚠ Non trouvé dans la RTA — réponse IA basée sur une recherche web";
+    sourcesEl.innerHTML = "";
+    renderWebSources(data.web_sources);
+  } else {
+    originBadge.className = "origin-badge origin-badge--rta";
+    originBadge.textContent = "✓ Réponse basée sur la revue technique";
+    webSourcesEl.innerHTML = "";
+    renderSources(data.sources);
+  }
+}
+
+function renderSources(sources) {
+  if (!sources || sources.length === 0) {
     sourcesEl.innerHTML = "";
     return;
   }
 
-  sourcesEl.innerHTML = data.sources
+  sourcesEl.innerHTML = sources
     .map((source) => {
       if (source.schematic_image_url) {
         return `
@@ -73,7 +89,7 @@ function renderAnswer(data) {
             />
             <figcaption>
               Schéma — page ${source.page_num}
-              <a class="full-page-link" data-full="${source.page_image_url}" href="#">voir la page complète</a>
+              <a class="full-page-link" data-full="${source.page_image_url}" href="#">page complète</a>
             </figcaption>
           </figure>
         `;
@@ -99,6 +115,24 @@ function renderAnswer(data) {
       openLightbox(el.dataset.full);
     });
   });
+}
+
+function renderWebSources(webSources) {
+  if (!webSources || webSources.length === 0) {
+    webSourcesEl.innerHTML = "";
+    return;
+  }
+
+  webSourcesEl.innerHTML =
+    "<p class='web-sources-label'>Sources :</p>" +
+    "<ul>" +
+    webSources
+      .map(
+        (s) =>
+          `<li><a href="${s.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a></li>`
+      )
+      .join("") +
+    "</ul>";
 }
 
 function openLightbox(src) {

@@ -1,5 +1,8 @@
-"""Appels Vertex AI (Gemini) : embedding de requête et synthèse de réponse."""
+"""Appels Vertex AI (Gemini) : embedding de requête, synthèse de réponse à partir de la
+RTA, et réponse de secours sourcée via recherche web quand la RTA ne couvre pas le sujet."""
 from __future__ import annotations
+
+from dataclasses import dataclass
 
 import numpy as np
 from google import genai
@@ -19,6 +22,22 @@ Question : {query}
 Extraits disponibles :
 {context}
 """
+
+_WEB_ANSWER_PROMPT = """Tu es un assistant spécialisé sur l'entretien et la réparation \
+des Peugeot 106, Citroën Saxo, Peugeot 205, Peugeot 206 et Peugeot 306. La revue \
+technique officielle disponible ne couvre pas cette question. Réponds en français à \
+partir d'une recherche web réelle, en t'appuyant sur des sources fiables (forums \
+automobiles reconnus, documentation constructeur, sites de pièces détachées). Si tu \
+n'es pas sûr, dis-le clairement plutôt que d'inventer une réponse.
+
+Question : {query}
+"""
+
+
+@dataclass(frozen=True)
+class WebSourceInfo:
+    title: str
+    url: str
 
 
 def _client(settings: Settings) -> genai.Client:
@@ -47,3 +66,26 @@ def generate_answer(settings: Settings, query: str, pages: list[PageEntry]) -> s
     prompt = _ANSWER_PROMPT.format(query=query, context=context)
     response = client.models.generate_content(model=settings.gemini_model, contents=prompt)
     return response.text or ""
+
+
+def generate_web_answer(settings: Settings, query: str) -> tuple[str, list[WebSourceInfo]]:
+    client = _client(settings)
+    response = client.models.generate_content(
+        model=settings.gemini_model,
+        contents=_WEB_ANSWER_PROMPT.format(query=query),
+        config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())]),
+    )
+    answer = response.text or ""
+
+    sources: list[WebSourceInfo] = []
+    seen_urls: set[str] = set()
+    candidates = response.candidates or []
+    grounding = getattr(candidates[0], "grounding_metadata", None) if candidates else None
+    chunks = getattr(grounding, "grounding_chunks", None) or []
+    for chunk in chunks:
+        web = getattr(chunk, "web", None)
+        if web and web.uri and web.uri not in seen_urls:
+            seen_urls.add(web.uri)
+            sources.append(WebSourceInfo(title=web.title or web.domain or web.uri, url=web.uri))
+
+    return answer, sources
