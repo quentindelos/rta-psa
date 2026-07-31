@@ -13,7 +13,6 @@ const lightboxImg = document.getElementById("lightbox-img");
 const themeToggle = document.getElementById("theme-toggle");
 const historyEl = document.getElementById("history");
 const historyListEl = document.getElementById("history-list");
-const historyClearBtn = document.getElementById("history-clear");
 const searchStepsEl = document.getElementById("search-steps");
 const searchStepsList = document.getElementById("search-steps-list");
 
@@ -23,40 +22,82 @@ const HISTORY_MAX = 12;
 
 function loadHistory() {
   try {
-    return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+    const raw = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+    // Anciennes entrées enregistrées avant l'ajout du contexte véhicule : de simples
+    // chaînes plutôt que des objets {query, vehicle, vehicleLabel}.
+    return raw.map((entry) =>
+      typeof entry === "string" ? { query: entry, vehicle: "", vehicleLabel: "" } : entry
+    );
   } catch {
     return [];
   }
 }
 
-function saveQueryToHistory(query) {
-  const history = loadHistory().filter((q) => q !== query);
-  history.unshift(query);
+function sameEntry(a, query, vehicle) {
+  return a.query === query && a.vehicle === vehicle;
+}
+
+function saveQueryToHistory(query, vehicle, vehicleLabel) {
+  const history = loadHistory().filter((entry) => !sameEntry(entry, query, vehicle));
+  history.unshift({ query, vehicle, vehicleLabel });
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_MAX)));
+  renderHistory();
+}
+
+function removeQueryFromHistory(query, vehicle) {
+  const history = loadHistory().filter((entry) => !sameEntry(entry, query, vehicle));
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
   renderHistory();
 }
 
 function renderHistory() {
   const history = loadHistory();
   historyEl.hidden = history.length === 0;
+  historyListEl.innerHTML = "";
   if (history.length === 0) return;
 
-  historyListEl.innerHTML = history
-    .map((q) => `<button type="button" class="history-item">${escapeHtml(q)}</button>`)
-    .join("");
+  // Construit les éléments via le DOM (pas de HTML avec du texte utilisateur
+  // interpolé) : une question peut contenir des guillemets, ça casserait un
+  // attribut construit par concaténation de chaînes.
+  history.forEach((entry) => {
+    const item = document.createElement("div");
+    item.className = "history-item";
 
-  historyListEl.querySelectorAll(".history-item").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      queryInput.value = btn.textContent;
+    const textBtn = document.createElement("button");
+    textBtn.type = "button";
+    textBtn.className = "history-item-text";
+
+    const queryLabel = document.createElement("span");
+    queryLabel.className = "history-item-query";
+    queryLabel.textContent = entry.query;
+    textBtn.appendChild(queryLabel);
+
+    if (entry.vehicleLabel) {
+      const vehicleTag = document.createElement("span");
+      vehicleTag.className = "history-item-vehicle";
+      vehicleTag.textContent = entry.vehicleLabel;
+      textBtn.appendChild(vehicleTag);
+    }
+
+    textBtn.addEventListener("click", () => {
+      queryInput.value = entry.query;
+      vehicleSelect.value = entry.vehicle;
       form.requestSubmit();
     });
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "history-item-remove";
+    removeBtn.setAttribute("aria-label", "Supprimer cette question");
+    removeBtn.textContent = "×";
+    removeBtn.addEventListener("click", () => {
+      removeQueryFromHistory(entry.query, entry.vehicle);
+    });
+
+    item.append(textBtn, removeBtn);
+    historyListEl.appendChild(item);
   });
 }
-
-historyClearBtn.addEventListener("click", () => {
-  localStorage.removeItem(HISTORY_KEY);
-  renderHistory();
-});
 
 renderHistory();
 
@@ -91,6 +132,7 @@ form.addEventListener("submit", (event) => {
   showStatus("Recherche en cours…", false);
 
   const vehicle = vehicleSelect.value;
+  const vehicleLabel = vehicle ? vehicleSelect.options[vehicleSelect.selectedIndex].text : "";
   const params = new URLSearchParams({ q: query });
   if (vehicle) params.set("vehicle", vehicle);
 
@@ -105,7 +147,7 @@ form.addEventListener("submit", (event) => {
     es.close();
     currentEventSource = null;
     renderAnswer(JSON.parse(event.data));
-    saveQueryToHistory(query);
+    saveQueryToHistory(query, vehicle, vehicleLabel);
     setLoading(false);
   });
 

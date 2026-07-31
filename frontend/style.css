@@ -234,15 +234,6 @@ button:disabled {
   margin-bottom: 0.5rem;
 }
 
-.history-clear {
-  padding: 0;
-  background: none;
-  color: var(--accent);
-  font-size: 0.82rem;
-  font-weight: 400;
-  text-decoration: underline;
-}
-
 .history-list {
   display: flex;
   flex-wrap: wrap;
@@ -250,21 +241,77 @@ button:disabled {
 }
 
 .history-item {
-  padding: 0.4rem 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.35rem 0.3rem 0.35rem 0.8rem;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--card-bg);
   color: var(--fg);
+  max-width: 280px;
+}
+
+.history-item:hover,
+.history-item:focus-within {
+  border-color: var(--accent);
+}
+
+.history-item-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
   font-size: 0.85rem;
   font-weight: 400;
-  max-width: 280px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-item-query,
+.history-item-vehicle {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.history-item:hover {
-  border-color: var(--accent);
+.history-item-vehicle {
+  margin-top: 0.1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.history-item-remove {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s ease, background 0.1s ease, color 0.1s ease;
+}
+
+.history-item:hover .history-item-remove,
+.history-item-remove:focus-visible {
+  opacity: 1;
+}
+
+.history-item-remove:hover {
+  background: var(--border);
+  color: var(--error);
 }
 
 .status {
@@ -574,8 +621,13 @@ footer a {
   .history-item {
     max-width: 100%;
     width: 100%;
-    text-align: left;
+  }
+
+  .history-item-query,
+  .history-item-vehicle {
     white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
   }
 }
 
