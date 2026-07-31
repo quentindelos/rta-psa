@@ -4,8 +4,11 @@
   --fg: #1a1a1a;
   --muted: #666666;
   --accent: #2a5db0;
+  --accent-fg: #ffffff;
   --border: #dddddd;
   --card-bg: #f7f7f8;
+  --discord: #5865f2;
+  --error: #c0392b;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -14,8 +17,10 @@
     --fg: #eaeaea;
     --muted: #a0a0a0;
     --accent: #6fa8ff;
+    --accent-fg: #0b1220;
     --border: #333333;
     --card-bg: #1e1e1e;
+    --error: #ff8a75;
   }
 }
 
@@ -31,112 +36,182 @@ body {
 }
 
 header {
-  padding: 2rem 1rem 1rem;
+  padding: 2.5rem 1rem 1.25rem;
   text-align: center;
 }
 
 h1 {
-  margin: 0 0 0.25rem;
-  font-size: 1.5rem;
+  margin: 0 0 0.35rem;
+  font-size: clamp(1.5rem, 4vw, 2rem);
 }
 
 .subtitle {
   margin: 0;
   color: var(--muted);
+  font-size: 1.05rem;
+}
+
+.discord-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  max-width: 700px;
+  margin: 0 auto 1.75rem;
+  padding: 0.9rem 1.2rem;
+  border-radius: 12px;
+  background: var(--discord);
+  color: #ffffff;
+  text-decoration: none;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.discord-banner:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(88, 101, 242, 0.35);
+}
+
+.discord-icon {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+}
+
+.discord-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1 1 auto;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
+.discord-text strong {
+  font-size: 1rem;
+}
+
+.discord-cta {
+  flex: 0 0 auto;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.18);
 }
 
 main {
   max-width: 700px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 0 1rem 3rem;
 }
 
-#search-form {
+#ask-form {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
+  gap: 0.6rem;
 }
 
 #query {
   flex: 1 1 300px;
-  padding: 0.6rem 0.8rem;
+  padding: 0.85rem 1rem;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 10px;
   background: var(--bg);
   color: var(--fg);
-  font-size: 1rem;
+  font-size: 1.05rem;
 }
 
-.mode-toggle {
-  display: flex;
-  gap: 0.75rem;
-  font-size: 0.9rem;
-  color: var(--muted);
+#query:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 button {
-  padding: 0.6rem 1.2rem;
+  padding: 0.85rem 1.6rem;
   border: none;
-  border-radius: 6px;
+  border-radius: 10px;
   background: var(--accent);
-  color: white;
-  font-size: 1rem;
+  color: var(--accent-fg);
+  font-size: 1.05rem;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.answer {
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.status {
   margin-top: 1.5rem;
-  padding: 1rem;
-  border-radius: 8px;
-  background: var(--card-bg);
-}
-
-.sources {
   color: var(--muted);
-  font-size: 0.85rem;
-  margin-bottom: 0;
+  font-size: 0.95rem;
 }
 
-.results {
-  list-style: none;
-  margin: 1.5rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.status-error {
+  color: var(--error);
 }
 
-.result {
-  padding: 1rem;
-  border-radius: 8px;
+.answer-card {
+  margin-top: 1.5rem;
+  padding: 1.25rem 1.4rem;
+  border-radius: 12px;
   background: var(--card-bg);
 }
 
-.page-badge {
-  display: inline-block;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--accent);
-  margin-bottom: 0.4rem;
-}
-
-.excerpt {
-  margin: 0 0 0.6rem;
+.answer-text {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.6;
   white-space: pre-wrap;
 }
 
-.thumbnail {
-  max-width: 100%;
-  max-height: 200px;
-  border-radius: 4px;
-  cursor: zoom-in;
-  display: block;
+.sources {
+  margin-top: 1.25rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
 }
 
-.error,
-.empty {
+.source-card {
+  margin: 0;
+  padding: 0.6rem;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.source-card--schematic {
+  border-color: var(--accent);
+}
+
+.source-image {
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 6px;
+  cursor: zoom-in;
+  display: block;
+  background: var(--card-bg);
+}
+
+.source-card figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
   color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.full-page-link {
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.full-page-link:hover {
+  text-decoration: underline;
 }
 
 .lightbox {

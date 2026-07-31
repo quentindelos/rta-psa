@@ -2,6 +2,12 @@
 from pydantic import BaseModel
 
 
+class Source(BaseModel):
+    page_num: int
+    page_image_url: str
+    schematic_image_url: str | None = None
+
+
 class SearchResult(BaseModel):
     page_num: int
     excerpt: str
@@ -17,4 +23,4 @@ class SearchResponse(BaseModel):
 class AskResponse(BaseModel):
     query: str
     answer: str
-    sources: list[int]
+    sources: list[Source]

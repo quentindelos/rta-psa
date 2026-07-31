@@ -1,29 +1,29 @@
-const form = document.getElementById("search-form");
-const resultsEl = document.getElementById("results");
-const answerEl = document.getElementById("answer");
+const form = document.getElementById("ask-form");
+const queryInput = document.getElementById("query");
+const submitBtn = document.getElementById("submit-btn");
+const statusEl = document.getElementById("status");
+const answerCard = document.getElementById("answer-card");
+const answerText = document.getElementById("answer-text");
+const sourcesEl = document.getElementById("sources");
 const lightbox = document.getElementById("lightbox");
 const lightboxImg = document.getElementById("lightbox-img");
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const query = document.getElementById("query").value.trim();
+  const query = queryInput.value.trim();
   if (!query) return;
 
-  const mode = form.elements["mode"].value;
-  resultsEl.innerHTML = "";
-  answerEl.hidden = true;
-  answerEl.innerHTML = "";
+  setLoading(true);
+  answerCard.hidden = true;
+  statusEl.hidden = true;
 
   try {
-    if (mode === "ask") {
-      const data = await fetchJSON(`/api/ask?q=${encodeURIComponent(query)}`);
-      renderAnswer(data);
-    } else {
-      const data = await fetchJSON(`/api/search?q=${encodeURIComponent(query)}`);
-      renderResults(data.results);
-    }
+    const data = await fetchJSON(`/api/ask?q=${encodeURIComponent(query)}`);
+    renderAnswer(data);
   } catch (err) {
-    resultsEl.innerHTML = `<li class="error">Erreur : ${err.message}</li>`;
+    showStatus(`Erreur : ${err.message}`, true);
+  } finally {
+    setLoading(false);
   }
 });
 
@@ -35,34 +35,69 @@ async function fetchJSON(url) {
   return response.json();
 }
 
-function renderAnswer(data) {
-  answerEl.hidden = false;
-  const sources = data.sources.map((p) => `page ${p}`).join(", ");
-  answerEl.innerHTML = `
-    <p>${escapeHtml(data.answer).replace(/\n/g, "<br>")}</p>
-    <p class="sources">Sources : ${sources || "aucune"}</p>
-  `;
+function setLoading(isLoading) {
+  submitBtn.disabled = isLoading;
+  submitBtn.textContent = isLoading ? "Recherche…" : "Chercher";
+  if (isLoading) {
+    showStatus("Recherche dans la revue technique…", false);
+  }
 }
 
-function renderResults(results) {
-  if (results.length === 0) {
-    resultsEl.innerHTML = `<li class="empty">Aucun résultat.</li>`;
+function showStatus(message, isError) {
+  statusEl.hidden = false;
+  statusEl.textContent = message;
+  statusEl.classList.toggle("status-error", isError);
+}
+
+function renderAnswer(data) {
+  statusEl.hidden = true;
+  answerCard.hidden = false;
+  answerText.innerHTML = escapeHtml(data.answer).replace(/\n/g, "<br>");
+
+  if (data.sources.length === 0) {
+    sourcesEl.innerHTML = "";
     return;
   }
-  resultsEl.innerHTML = results
-    .map(
-      (r) => `
-    <li class="result">
-      <span class="page-badge">page ${r.page_num}</span>
-      <p class="excerpt">${escapeHtml(r.excerpt)}</p>
-      <img class="thumbnail" src="${r.image_url}" alt="Page ${r.page_num}" loading="lazy" />
-    </li>
-  `
-    )
+
+  sourcesEl.innerHTML = data.sources
+    .map((source) => {
+      if (source.schematic_image_url) {
+        return `
+          <figure class="source-card source-card--schematic">
+            <img
+              class="source-image"
+              src="${source.schematic_image_url}"
+              alt="Schéma, page ${source.page_num}"
+              loading="lazy"
+              data-full="${source.schematic_image_url}"
+            />
+            <figcaption>
+              Schéma — page ${source.page_num}
+              <a class="full-page-link" data-full="${source.page_image_url}" href="#">voir la page complète</a>
+            </figcaption>
+          </figure>
+        `;
+      }
+      return `
+        <figure class="source-card">
+          <img
+            class="source-image"
+            src="${source.page_image_url}"
+            alt="Page ${source.page_num}"
+            loading="lazy"
+            data-full="${source.page_image_url}"
+          />
+          <figcaption>Page ${source.page_num}</figcaption>
+        </figure>
+      `;
+    })
     .join("");
 
-  resultsEl.querySelectorAll(".thumbnail").forEach((img) => {
-    img.addEventListener("click", () => openLightbox(img.src));
+  sourcesEl.querySelectorAll("[data-full]").forEach((el) => {
+    el.addEventListener("click", (event) => {
+      event.preventDefault();
+      openLightbox(el.dataset.full);
+    });
   });
 }
 

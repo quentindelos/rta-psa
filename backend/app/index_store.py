@@ -26,6 +26,7 @@ class PageEntry:
     text: str
     image_filename: str
     has_schematic: bool
+    schematic_image_filename: str | None = None
 
 
 @dataclass(frozen=True)

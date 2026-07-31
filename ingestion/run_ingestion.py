@@ -14,6 +14,7 @@ from pathlib import Path
 from google import genai
 
 import config
+import crop
 import embeddings
 import gemini_ocr
 import index_store
@@ -59,15 +60,25 @@ def main() -> None:
     for page_num in to_process:
         image_path = pages_dir / pdf_to_pages.PAGE_FILENAME.format(page_num)
         print(f"→ OCR page {page_num} ...")
-        text, has_schematic = gemini_ocr.ocr_page(client, cfg.gemini_model, image_path)
+        result = gemini_ocr.ocr_page(client, cfg.gemini_model, image_path)
+
+        schematic_image_filename = None
+        if result.has_schematic and result.schematic_box:
+            schematic_filename = f"page_{page_num:03d}_schema.jpg"
+            schematic_path = pages_dir / schematic_filename
+            if crop.crop_schematic(image_path, result.schematic_box, schematic_path):
+                schematic_image_filename = schematic_filename
+                print(f"  → schéma recadré : {schematic_filename}")
+
         print(f"→ Embedding page {page_num} ...")
-        vector = embeddings.embed_text(client, cfg.embedding_model, text)
+        vector = embeddings.embed_text(client, cfg.embedding_model, result.text)
 
         entry = index_store.PageEntry(
             page_num=page_num,
-            text=text,
+            text=result.text,
             image_filename=image_path.name,
-            has_schematic=has_schematic,
+            has_schematic=result.has_schematic,
+            schematic_image_filename=schematic_image_filename,
         )
         index.upsert(entry, vector)
 
