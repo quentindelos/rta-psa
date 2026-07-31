@@ -57,36 +57,48 @@ def main() -> None:
 
     client = genai.Client(vertexai=True, project=cfg.project_id, location=cfg.region)
 
-    for page_num in to_process:
-        image_path = pages_dir / pdf_to_pages.PAGE_FILENAME.format(page_num)
-        print(f"→ OCR page {page_num} ...")
-        result = gemini_ocr.ocr_page(client, cfg.gemini_model, image_path)
-
-        schematic_image_filename = None
-        if result.has_schematic and result.schematic_box:
-            schematic_filename = f"page_{page_num:03d}_schema.jpg"
-            schematic_path = pages_dir / schematic_filename
-            if crop.crop_schematic(image_path, result.schematic_box, schematic_path):
-                schematic_image_filename = schematic_filename
-                print(f"  → schéma recadré : {schematic_filename}")
-
-        print(f"→ Embedding page {page_num} ...")
-        vector = embeddings.embed_text(client, cfg.embedding_model, result.text)
-
-        entry = index_store.PageEntry(
-            page_num=page_num,
-            text=result.text,
-            image_filename=image_path.name,
-            has_schematic=result.has_schematic,
-            schematic_image_filename=schematic_image_filename,
-        )
-        index.upsert(entry, vector)
-
     index.embedding_model = cfg.embedding_model
     index.gemini_model = cfg.gemini_model
-    index_store.save(index, index_dir)
+
+    failed_pages = []
+    for page_num in to_process:
+        image_path = pages_dir / pdf_to_pages.PAGE_FILENAME.format(page_num)
+        try:
+            print(f"→ OCR page {page_num} ...")
+            result = gemini_ocr.ocr_page(client, cfg.gemini_model, image_path)
+
+            schematic_image_filename = None
+            if result.has_schematic and result.schematic_box:
+                schematic_filename = f"page_{page_num:03d}_schema.jpg"
+                schematic_path = pages_dir / schematic_filename
+                if crop.crop_schematic(image_path, result.schematic_box, schematic_path):
+                    schematic_image_filename = schematic_filename
+                    print(f"  → schéma recadré : {schematic_filename}")
+
+            print(f"→ Embedding page {page_num} ...")
+            vector = embeddings.embed_text(client, cfg.embedding_model, result.text)
+
+            entry = index_store.PageEntry(
+                page_num=page_num,
+                text=result.text,
+                image_filename=image_path.name,
+                has_schematic=result.has_schematic,
+                schematic_image_filename=schematic_image_filename,
+            )
+            index.upsert(entry, vector)
+            # Sauvegarde après chaque page : un crash en cours de lot ne perd
+            # jamais le travail (et le coût API) déjà effectué.
+            index_store.save(index, index_dir)
+        except Exception as exc:
+            print(f"  ✗ Échec page {page_num} : {exc}")
+            failed_pages.append(page_num)
 
     print(f"✓ Index mis à jour : {len(index.pages)} page(s) au total dans {index_dir}")
+    if failed_pages:
+        print(
+            f"⚠ {len(failed_pages)} page(s) en échec : {failed_pages} — "
+            "relance la même commande pour ne réessayer que celles-ci."
+        )
     print(f"→ Prochaine étape : python upload_to_gcs.py --workdir {args.workdir}")
 
 

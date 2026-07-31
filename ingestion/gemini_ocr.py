@@ -10,6 +10,7 @@ from pathlib import Path
 
 from google import genai
 from google.genai import types
+from pydantic import BaseModel
 
 PROMPT = """Tu analyses une page scannée d'une revue technique automobile en français \
 (Peugeot 106 / Citroën Saxo).
@@ -27,6 +28,17 @@ la lisant. Sinon null.
 - "schematic_box" : si has_schematic est true, la boîte englobante du schéma UNIQUEMENT \
 (pas le texte autour) sur la page, au format [y_min, x_min, y_max, x_max] normalisé entre \
 0 et 1000 par rapport aux dimensions de l'image entière. Sinon null."""
+
+
+class _OcrSchema(BaseModel):
+    """Schéma de sortie strict — sans ça, Gemini improvise parfois sa propre
+    structure JSON sur les pages avec un tableau ou une mise en page complexe,
+    ce qui casse le parsing en aval."""
+
+    text: str
+    has_schematic: bool
+    schematic_description: str | None = None
+    schematic_box: list[int] | None = None
 
 
 @dataclass
@@ -64,7 +76,10 @@ def ocr_page(client: genai.Client, model: str, image_path: Path, max_retries: in
                     types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
                     PROMPT,
                 ],
-                config=types.GenerateContentConfig(response_mime_type="application/json"),
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=_OcrSchema,
+                ),
             )
             return _parse_response(response.text or "{}")
         except Exception as exc:  # erreurs transitoires Vertex AI ou JSON malformé
