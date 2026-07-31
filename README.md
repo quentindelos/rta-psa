@@ -1,4 +1,4 @@
-# rta-psa
+# RTA : Peugeot 106 toute version & Citroen Saxo toute version
 
 App de recherche dans la revue technique 106/Saxo (109 pages, texte + schémas
 électriques), numérisée et interrogeable via une interface web.
