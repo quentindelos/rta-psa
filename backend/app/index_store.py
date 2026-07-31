@@ -43,6 +43,16 @@ class IndexStore:
         client = storage.Client(project=settings.google_cloud_project)
         bucket = client.bucket(settings.gcs_bucket_index)
 
+        if not bucket.blob("index/manifest.json").exists():
+            logger.warning(
+                "Aucun index trouvé dans gs://%s/index/ — aucune page ingérée pour "
+                "l'instant. L'app démarre avec un index vide.",
+                settings.gcs_bucket_index,
+            )
+            self._pages = []
+            self._embeddings = np.zeros((0, 0), dtype=np.float32)
+            return
+
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             bucket.blob("index/metadata.jsonl").download_to_filename(tmp_path / "metadata.jsonl")
