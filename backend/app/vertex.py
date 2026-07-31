@@ -2,6 +2,7 @@
 RTA, et réponse de secours sourcée via recherche web quand la RTA ne couvre pas le sujet."""
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 import numpy as np
@@ -13,9 +14,17 @@ from .index_store import PageEntry
 
 _ANSWER_PROMPT = """Tu réponds en français à une question sur une revue technique \
 automobile (Peugeot 106 / Citroën Saxo), à partir UNIQUEMENT des extraits de pages \
-fournis ci-dessous. Cite systématiquement le(s) numéro(s) de page que tu utilises \
-réellement dans ta réponse (ex : "(page 42)"). Si les extraits ne permettent pas de \
-répondre, dis-le clairement plutôt que d'inventer une réponse.
+fournis ci-dessous.
+
+Réponds UNIQUEMENT avec un objet JSON valide (pas de balises markdown), avec exactement \
+ces clés :
+- "found_in_rta" : true si les extraits fournis permettent réellement de répondre à la \
+question posée, false si ce n'est pas le cas (sujet non couvert, extraits hors sujet, \
+véhicule différent, etc.). Ne mets pas true juste parce que les extraits parlent du même \
+thème général — il faut qu'ils répondent vraiment à la question.
+- "answer" : si found_in_rta est true, la réponse à la question, en citant \
+systématiquement le(s) numéro(s) de page utilisé(s) (ex : "(page 42)"). Si found_in_rta \
+est false, une chaîne vide "".
 
 Question : {query}
 
@@ -40,6 +49,12 @@ class WebSourceInfo:
     url: str
 
 
+@dataclass(frozen=True)
+class RtaAnswer:
+    found: bool
+    answer: str
+
+
 def _client(settings: Settings) -> genai.Client:
     return genai.Client(
         vertexai=True,
@@ -60,12 +75,20 @@ def embed_query(settings: Settings, text: str) -> np.ndarray:
     return vector / norm if norm > 0 else vector
 
 
-def generate_answer(settings: Settings, query: str, pages: list[PageEntry]) -> str:
+def generate_answer(settings: Settings, query: str, pages: list[PageEntry]) -> RtaAnswer:
     client = _client(settings)
     context = "\n\n".join(f"--- Page {p.page_num} ---\n{p.text}" for p in pages)
     prompt = _ANSWER_PROMPT.format(query=query, context=context)
-    response = client.models.generate_content(model=settings.gemini_model, contents=prompt)
-    return response.text or ""
+    response = client.models.generate_content(
+        model=settings.gemini_model,
+        contents=prompt,
+        config=types.GenerateContentConfig(response_mime_type="application/json"),
+    )
+    try:
+        data = json.loads(response.text or "{}")
+    except json.JSONDecodeError:
+        return RtaAnswer(found=False, answer="")
+    return RtaAnswer(found=bool(data.get("found_in_rta", False)), answer=data.get("answer", "") or "")
 
 
 def generate_web_answer(settings: Settings, query: str) -> tuple[str, list[WebSourceInfo]]:

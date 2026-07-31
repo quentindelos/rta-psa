@@ -14,23 +14,23 @@ def ask(q: str, k: int | None = None, settings: Settings = Depends(get_settings)
     query_vector = embed_query(settings, q)
     hits = index_store.search(query_vector, top_k)
 
-    best_score = hits[0].score if hits else -1.0
-    if hits and best_score >= settings.rta_confidence_threshold:
+    if hits:
         pages = [hit.page for hit in hits]
-        answer = generate_answer(settings, q, pages)
-        sources = [
-            Source(
-                page_num=page.page_num,
-                page_image_url=f"https://storage.googleapis.com/{settings.gcs_bucket_pages}/{page.image_filename}",
-                schematic_image_url=(
-                    f"https://storage.googleapis.com/{settings.gcs_bucket_pages}/{page.schematic_image_filename}"
-                    if page.schematic_image_filename
-                    else None
-                ),
-            )
-            for page in pages
-        ]
-        return AskResponse(query=q, answer=answer, answer_origin="rta", sources=sources)
+        result = generate_answer(settings, q, pages)
+        if result.found:
+            sources = [
+                Source(
+                    page_num=page.page_num,
+                    page_image_url=f"https://storage.googleapis.com/{settings.gcs_bucket_pages}/{page.image_filename}",
+                    schematic_image_url=(
+                        f"https://storage.googleapis.com/{settings.gcs_bucket_pages}/{page.schematic_image_filename}"
+                        if page.schematic_image_filename
+                        else None
+                    ),
+                )
+                for page in pages
+            ]
+            return AskResponse(query=q, answer=result.answer, answer_origin="rta", sources=sources)
 
     answer, web_sources = generate_web_answer(settings, q)
     return AskResponse(
