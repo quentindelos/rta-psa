@@ -126,6 +126,23 @@ h1 {
   width: 32px;
   height: 32px;
   flex: 0 0 auto;
+  animation: discord-bounce 1.8s ease-in-out infinite;
+}
+
+@keyframes discord-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discord-icon {
+    animation: none;
+  }
 }
 
 .discord-text {
@@ -444,6 +461,29 @@ footer a {
   .discord-compact-label {
     display: inline;
     font-size: 0.95rem;
+  }
+
+  /* Historique en barre latérale gauche, sous le bouton Discord */
+  .history {
+    position: fixed;
+    top: 4.5rem;
+    left: 1rem;
+    width: 220px;
+    max-height: calc(100vh - 5.5rem);
+    overflow-y: auto;
+    margin-top: 0;
+  }
+
+  .history-list {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .history-item {
+    max-width: 100%;
+    width: 100%;
+    text-align: left;
+    white-space: normal;
   }
 }
 
