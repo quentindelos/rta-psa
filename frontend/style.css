@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --bg: #ffffff;
   --fg: #1a1a1a;
   --muted: #666666;
@@ -12,22 +12,6 @@
   --success: #1f8a4c;
   --warning: #9a6400;
   --warning-bg: #fff6e0;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #121212;
-    --fg: #eaeaea;
-    --muted: #a0a0a0;
-    --accent: #6fa8ff;
-    --accent-fg: #0b1220;
-    --border: #333333;
-    --card-bg: #1e1e1e;
-    --error: #ff8a75;
-    --success: #4fce8a;
-    --warning: #ffcc66;
-    --warning-bg: #3a2f10;
-  }
 }
 
 * {
@@ -61,7 +45,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 0.9rem;
-  max-width: 700px;
+  max-width: 960px;
   margin: 0 auto 1.75rem;
   padding: 0.9rem 1.2rem;
   border-radius: 12px;
@@ -105,7 +89,7 @@ h1 {
 }
 
 main {
-  max-width: 700px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 0 1rem 3rem;
 }
@@ -283,7 +267,7 @@ button:disabled {
 }
 
 footer {
-  max-width: 700px;
+  max-width: 960px;
   margin: 2rem auto 2.5rem;
   padding: 0 1rem;
   text-align: center;
