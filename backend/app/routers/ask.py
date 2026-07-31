@@ -7,6 +7,7 @@ import numpy as np
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
+from ..answer_cache import answer_cache
 from ..config import Settings, get_settings
 from ..index_store import PageEntry, index_store
 from ..models import AskResponse, Source, WebSource
@@ -50,6 +51,10 @@ def _try_rta(
 def ask(
     q: str, vehicle: str | None = None, k: int | None = None, settings: Settings = Depends(get_settings)
 ) -> AskResponse:
+    cached = answer_cache.get(q, vehicle)
+    if cached is not None:
+        return cached
+
     query_vector = embed_query(settings, q)
     top_k = k or settings.top_k_default
 
@@ -62,17 +67,20 @@ def ask(
 
     if found is not None:
         result, pages = found
-        return AskResponse(
+        response = AskResponse(
             query=q, answer=result.answer, answer_origin="rta", sources=_sources_from(result, pages, settings)
         )
+    else:
+        answer, web_sources = generate_web_answer(settings, q, vehicle)
+        response = AskResponse(
+            query=q,
+            answer=answer,
+            answer_origin="web",
+            web_sources=[WebSource(title=s.title, url=s.url) for s in web_sources],
+        )
 
-    answer, web_sources = generate_web_answer(settings, q, vehicle)
-    return AskResponse(
-        query=q,
-        answer=answer,
-        answer_origin="web",
-        web_sources=[WebSource(title=s.title, url=s.url) for s in web_sources],
-    )
+    answer_cache.set(q, vehicle, response)
+    return response
 
 
 def _sse(event: str, data: dict) -> str:
@@ -88,6 +96,12 @@ def ask_stream(
     évènement "result" avec la réponse finale au même format que /ask."""
 
     def generate() -> Iterator[str]:
+        cached = answer_cache.get(q, vehicle)
+        if cached is not None:
+            yield _sse("step", {"message": "Question déjà posée récemment — réponse en cache, pas de nouvelle recherche."})
+            yield _sse("result", cached.model_dump())
+            return
+
         yield _sse("step", {"message": "Recherche des pages les plus proches dans la revue technique…"})
         query_vector = embed_query(settings, q)
         top_k = k or settings.top_k_default
@@ -118,6 +132,7 @@ def ask_stream(
             response = AskResponse(
                 query=q, answer=result.answer, answer_origin="rta", sources=_sources_from(result, pages, settings)
             )
+            answer_cache.set(q, vehicle, response)
             yield _sse("result", response.model_dump())
             return
 
@@ -129,6 +144,7 @@ def ask_stream(
             answer_origin="web",
             web_sources=[WebSource(title=s.title, url=s.url) for s in web_sources],
         )
+        answer_cache.set(q, vehicle, response)
         yield _sse("result", response.model_dump())
 
     return StreamingResponse(generate(), media_type="text/event-stream")
