@@ -27,6 +27,13 @@ class PageEntry:
     image_filename: str
     has_schematic: bool
     schematic_image_filenames: list[str] = field(default_factory=list)
+    # Numéro/libellé tel qu'imprimé sur la page (ex: "I", "XXII", "86-087") — peut
+    # diverger de page_num, voir ingestion/apply_page_labels.py.
+    page_label: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.page_label:
+            object.__setattr__(self, "page_label", str(self.page_num))
 
 
 @dataclass(frozen=True)

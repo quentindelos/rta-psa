@@ -24,7 +24,7 @@ def search(q: str, k: int | None = None, settings: Settings = Depends(get_settin
     hits = index_store.search(query_vector, top_k)
     results = [
         SearchResult(
-            page_num=hit.page.page_num,
+            page_num=hit.page.page_label,
             excerpt=_excerpt(hit.page.text),
             image_url=f"https://storage.googleapis.com/{settings.gcs_bucket_pages}/{hit.page.image_filename}",
             score=hit.score,

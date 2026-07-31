@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 
 class Source(BaseModel):
-    page_num: int
+    page_num: str
     page_image_url: str
     schematic_image_urls: list[str] = []
 
@@ -16,7 +16,7 @@ class WebSource(BaseModel):
 
 
 class SearchResult(BaseModel):
-    page_num: int
+    page_num: str
     excerpt: str
     image_url: str
     score: float

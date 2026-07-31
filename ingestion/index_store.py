@@ -20,6 +20,14 @@ class PageEntry:
     image_filename: str
     has_schematic: bool
     schematic_image_filenames: list[str] = field(default_factory=list)
+    # Numéro/libellé tel qu'imprimé sur la page (ex: "I", "XXII", "3", "86-087") — peut
+    # diverger de page_num (position dans le lot), voir apply_page_labels.py. Par défaut
+    # égal à page_num pour les pages sans label connu (ex: couverture, sommaire).
+    page_label: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.page_label:
+            self.page_label = str(self.page_num)
 
 
 @dataclass

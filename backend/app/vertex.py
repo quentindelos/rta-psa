@@ -3,7 +3,7 @@ RTA, et réponse de secours sourcée via recherche web quand la RTA ne couvre pa
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 from google import genai
@@ -22,9 +22,12 @@ ces clés :
 question posée, false si ce n'est pas le cas (sujet non couvert, extraits hors sujet, \
 véhicule différent, etc.). Ne mets pas true juste parce que les extraits parlent du même \
 thème général — il faut qu'ils répondent vraiment à la question.
-- "answer" : si found_in_rta est true, la réponse à la question, en citant \
-systématiquement le(s) numéro(s) de page utilisé(s) (ex : "(page 42)"). Si found_in_rta \
-est false, une chaîne vide "".
+- "answer" : si found_in_rta est true, la réponse à la question, concise et directe, en \
+citant systématiquement le(s) numéro(s) de page utilisé(s) (ex : "(page 42)"). Si \
+found_in_rta est false, une chaîne vide "".
+- "cited_pages" : si found_in_rta est true, la liste des numéros de page (parmi ceux des \
+extraits fournis) RÉELLEMENT utilisés pour construire la réponse — uniquement celles qui \
+contiennent l'information demandée, pas toutes les pages fournies. Liste vide sinon.
 
 Question : {query}
 
@@ -53,6 +56,7 @@ class WebSourceInfo:
 class RtaAnswer:
     found: bool
     answer: str
+    cited_pages: list[str] = field(default_factory=list)
 
 
 def _client(settings: Settings) -> genai.Client:
@@ -77,7 +81,7 @@ def embed_query(settings: Settings, text: str) -> np.ndarray:
 
 def generate_answer(settings: Settings, query: str, pages: list[PageEntry]) -> RtaAnswer:
     client = _client(settings)
-    context = "\n\n".join(f"--- Page {p.page_num} ---\n{p.text}" for p in pages)
+    context = "\n\n".join(f"--- Page {p.page_label} ---\n{p.text}" for p in pages)
     prompt = _ANSWER_PROMPT.format(query=query, context=context)
     response = client.models.generate_content(
         model=settings.gemini_model,
@@ -88,7 +92,12 @@ def generate_answer(settings: Settings, query: str, pages: list[PageEntry]) -> R
         data = json.loads(response.text or "{}")
     except json.JSONDecodeError:
         return RtaAnswer(found=False, answer="")
-    return RtaAnswer(found=bool(data.get("found_in_rta", False)), answer=data.get("answer", "") or "")
+    cited_pages = [str(p) for p in (data.get("cited_pages") or [])]
+    return RtaAnswer(
+        found=bool(data.get("found_in_rta", False)),
+        answer=data.get("answer", "") or "",
+        cited_pages=cited_pages,
+    )
 
 
 def generate_web_answer(settings: Settings, query: str) -> tuple[str, list[WebSourceInfo]]:

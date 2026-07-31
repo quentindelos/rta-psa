@@ -18,16 +18,20 @@ def ask(q: str, k: int | None = None, settings: Settings = Depends(get_settings)
         pages = [hit.page for hit in hits]
         result = generate_answer(settings, q, pages)
         if result.found:
+            cited = set(result.cited_pages)
+            # Ne garde que les pages effectivement citées dans la réponse — sinon on
+            # affiche tout le top-k de la recherche, y compris des pages non pertinentes.
+            cited_pages = [page for page in pages if page.page_label in cited] or pages
             sources = [
                 Source(
-                    page_num=page.page_num,
+                    page_num=page.page_label,
                     page_image_url=f"https://storage.googleapis.com/{settings.gcs_bucket_pages}/{page.image_filename}",
                     schematic_image_urls=[
                         f"https://storage.googleapis.com/{settings.gcs_bucket_pages}/{filename}"
                         for filename in page.schematic_image_filenames
                     ],
                 )
-                for page in pages
+                for page in cited_pages
             ]
             return AskResponse(query=q, answer=result.answer, answer_origin="rta", sources=sources)
 
