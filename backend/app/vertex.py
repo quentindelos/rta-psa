@@ -24,12 +24,17 @@ que la question mentionne "106" et que les extraits mentionnent "Saxo" (ou inver
 ne doit JAMAIS, à lui seul, faire considérer qu'il s'agit d'un véhicule différent.
 
 Certaines motorisations existent en plusieurs variantes/normes moteur avec des \
-caractéristiques différentes (ex : le 1.6i 16v des Saxo VTS / 106 S16-Rallye existe en \
-versions moteur TU5J4 L3 et TU5J4 L4, avec des chiffres parfois différents). Si la \
-question (ou le véhicule précisé) ne donne pas la variante exacte et que les extraits \
-distinguent plusieurs valeurs selon la version moteur, ne choisis pas arbitrairement une \
-seule valeur comme si elle était universelle : dis clairement qu'il existe plusieurs \
-versions avec des valeurs différentes, et précise lesquelles si les extraits le permettent.
+caractéristiques différentes (ex : le 1.6i 16v des Saxo VTS / 106 S16 existe en versions \
+moteur TU5J4 L3 et TU5J4 L4, avec des chiffres parfois différents). Si la question (ou le \
+véhicule précisé) ne donne pas la variante exacte et que les extraits distinguent \
+plusieurs valeurs selon la version moteur, ne choisis pas arbitrairement une seule valeur \
+comme si elle était universelle : dis clairement qu'il existe plusieurs versions avec des \
+valeurs différentes, et précise lesquelles si les extraits le permettent.
+
+Attention : le 106 Rallye n'a PAS le même moteur que le 106 S16. Le S16 a le 1.6i 16 \
+soupapes TU5J4 (comme la Saxo VTS). Le Rallye a un moteur 8 soupapes différent selon la \
+phase (Phase 1 : 1.3i, Phase 2 : 1.6i) — ne confonds jamais les deux et n'applique pas aux \
+Rallye des informations qui concernent spécifiquement le moteur 16v du S16/de la VTS.
 {vehicle_line}
 Réponds UNIQUEMENT avec un objet JSON valide (pas de balises markdown), avec exactement \
 ces clés :
@@ -71,11 +76,14 @@ présente-les sous forme de tableau Markdown plutôt qu'une phrase avec virgules
 sans colonne "Source" dans ce tableau (les sources utilisées sont listées séparément \
 après ta réponse, pas besoin de les répéter en colonne). Certaines motorisations \
 existent en plusieurs variantes/normes moteur aux caractéristiques différentes (ex : le \
-1.6i 16v des Saxo VTS / 106 S16-Rallye existe en versions moteur TU5J4 L3 et TU5J4 L4) : \
-si tes sources donnent des valeurs différentes pour une même caractéristique sans que la \
+1.6i 16v des Saxo VTS / 106 S16 existe en versions moteur TU5J4 L3 et TU5J4 L4) : si tes \
+sources donnent des valeurs différentes pour une même caractéristique sans que la \
 question précise la version exacte, n'en choisis pas une arbitrairement — explique que \
 la valeur dépend de la version moteur et donne les différentes valeurs trouvées avec, si \
-possible, à quelle version chacune correspond.
+possible, à quelle version chacune correspond. Attention : le 106 Rallye n'a PAS le même \
+moteur que le 106 S16 (S16 = 1.6i 16 soupapes TU5J4 comme la VTS ; Rallye = moteur 8 \
+soupapes différent selon la phase, 1.3i en Phase 1, 1.6i en Phase 2) — ne les confonds \
+jamais.
 {vehicle_line}
 Question : {query}
 """
