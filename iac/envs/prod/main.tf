@@ -1,6 +1,7 @@
 module "services" {
   source          = "../../modules/services"
   project_id      = var.project_id
+  app_name        = var.app_name
   region          = var.region
   domain_name     = var.domain_name
   subdomain       = var.subdomain

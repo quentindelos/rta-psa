@@ -2,6 +2,11 @@ variable "project_id" {
   type = string
 }
 
+variable "app_name" {
+  type    = string
+  default = "rta-psa"
+}
+
 variable "region" {
   type    = string
   default = "europe-west1"

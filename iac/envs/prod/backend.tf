@@ -1,6 +1,6 @@
 terraform {
   backend "gcs" {
-    bucket = "rta-psa-terraform-state"
+    bucket = "rta-psa-tfstate"
     prefix = "rta-psa/envs/prod"
   }
 }
