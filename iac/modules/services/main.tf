@@ -135,20 +135,15 @@ resource "google_cloud_run_service_iam_member" "app_public" {
   member   = "allUsers"
 }
 
-# Volontairement absent tant que la bascule DNS n'est pas faite : le même
-# domaine est encore mappé sur le service de l'ancien projet GCP "rta-psa",
-# et Google Cloud Run n'autorise pas un domaine mappé sur deux services en
-# même temps. À réactiver au moment de la coupure (voir migration).
-#
-# resource "google_cloud_run_domain_mapping" "app_dns" {
-#   location = var.region
-#   name     = "${var.subdomain}.${var.domain_name}"
-#
-#   metadata {
-#     namespace = var.project_id
-#   }
-#
-#   spec {
-#     route_name = google_cloud_run_v2_service.app.name
-#   }
-# }
+resource "google_cloud_run_domain_mapping" "app_dns" {
+  location = var.region
+  name     = "${var.subdomain}.${var.domain_name}"
+
+  metadata {
+    namespace = var.project_id
+  }
+
+  spec {
+    route_name = google_cloud_run_v2_service.app.name
+  }
+}
