@@ -38,20 +38,56 @@
   box-sizing: border-box;
 }
 
-/* Motif de fond : silhouette de 106 en tuile, tirée d'une vraie photo (contours/
-   ombres gardés, fond blanc rendu transparent) plutôt qu'un dessin vectoriel -
-   `filter: invert(1)` en thème sombre pour passer du noir (thème clair) au blanc,
-   sans avoir à générer deux images. */
+/* Motif de fond : silhouettes de 106 éparpillées (positions/tailles différentes,
+   pas une grille en tuile) tirées d'une vraie photo (contours/ombres gardés, fond
+   blanc rendu transparent) plutôt qu'un dessin vectoriel - une seule image, répétée
+   en plusieurs calques CSS à des positions/tailles fixées à la main pour un rendu
+   "éparpillé" plutôt que mécanique. `filter: invert(1)` en thème sombre pour passer
+   du noir (thème clair) au blanc, sans avoir à générer deux images. */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
-  background-image: url("/assets/car-pattern.png");
-  background-repeat: repeat;
-  background-size: 130px auto;
-  opacity: 0.07;
+  opacity: 0.09;
   pointer-events: none;
+  background-repeat: no-repeat;
+  background-image:
+    url("/assets/car-pattern.png"),
+    url("/assets/car-pattern.png"),
+    url("/assets/car-pattern.png"),
+    url("/assets/car-pattern.png"),
+    url("/assets/car-pattern.png"),
+    url("/assets/car-pattern.png"),
+    url("/assets/car-pattern.png"),
+    url("/assets/car-pattern.png"),
+    url("/assets/car-pattern.png"),
+    url("/assets/car-pattern.png"),
+    url("/assets/car-pattern.png");
+  background-position:
+    44.7% 15.9%,
+    82.1% 55.1%,
+    66.2% 26.5%,
+    16.5% 85.1%,
+    60.7% 91.8%,
+    81.5% 94%,
+    44.1% 73.9%,
+    9% 39.1%,
+    66.7% 54%,
+    14.9% 25.3%,
+    37% 55.1%;
+  background-size:
+    38px auto,
+    54px auto,
+    49px auto,
+    32px auto,
+    38px auto,
+    26px auto,
+    32px auto,
+    41px auto,
+    28px auto,
+    48px auto,
+    48px auto;
 }
 
 :root[data-theme="dark"] body::before {
