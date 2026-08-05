@@ -10,6 +10,22 @@
 <body>
   <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Changer de thème">🌙</button>
 
+  <button
+    id="mobile-menu-toggle"
+    class="mobile-menu-toggle"
+    type="button"
+    aria-label="Ouvrir le menu"
+    aria-haspopup="true"
+    aria-expanded="false"
+    aria-controls="mobile-menu"
+  >
+    <span></span><span></span><span></span>
+  </button>
+  <div id="mobile-menu-backdrop" class="mobile-menu-backdrop" hidden></div>
+  <nav id="mobile-menu" class="mobile-menu" aria-label="Menu">
+    <button id="mobile-menu-close" class="mobile-menu-close" type="button" aria-label="Fermer le menu">×</button>
+  </nav>
+
   <header>
     <h1>Revue technique 106 / Saxo</h1>
     <p class="subtitle">Pose ta question, la réponse arrive avec les pages et schémas concernés</p>

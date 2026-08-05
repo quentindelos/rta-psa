@@ -15,6 +15,11 @@ const historyEl = document.getElementById("history");
 const historyListEl = document.getElementById("history-list");
 const searchStepsEl = document.getElementById("search-steps");
 const searchStepsList = document.getElementById("search-steps-list");
+const mobileMenuToggle = document.getElementById("mobile-menu-toggle");
+const mobileMenu = document.getElementById("mobile-menu");
+const mobileMenuBackdrop = document.getElementById("mobile-menu-backdrop");
+const mobileMenuClose = document.getElementById("mobile-menu-close");
+const discordBanner = document.querySelector(".discord-banner");
 
 const THEME_KEY = "rta-psa-theme";
 const HISTORY_KEY = "rta-psa-history";
@@ -89,6 +94,7 @@ function renderHistory() {
     }
 
     textBtn.addEventListener("click", () => {
+      closeMobileMenu();
       queryInput.value = entry.query;
       vehicleSelect.value = entry.vehicle;
       if (entry.response) {
@@ -138,6 +144,54 @@ themeToggle.addEventListener("click", () => {
   applyTheme(next);
 });
 
+// Sur mobile, le bouton thème/le bandeau Discord/l'historique prennent trop de place
+// dans le flux : ils passent dans un menu hamburger. On déplace les VRAIS éléments
+// (pas des copies, pour ne pas dupliquer l'état) plutôt que de dupliquer le HTML - un
+// marqueur à chaque emplacement d'origine permet de les y remettre sur grand écran.
+const themeToggleAnchor = document.createComment("theme-toggle-anchor");
+const discordBannerAnchor = document.createComment("discord-banner-anchor");
+const historyAnchor = document.createComment("history-anchor");
+themeToggle.after(themeToggleAnchor);
+discordBanner.after(discordBannerAnchor);
+historyEl.after(historyAnchor);
+
+function openMobileMenu() {
+  mobileMenu.classList.add("open");
+  mobileMenuBackdrop.hidden = false;
+  mobileMenuToggle.setAttribute("aria-expanded", "true");
+}
+
+function closeMobileMenu() {
+  mobileMenu.classList.remove("open");
+  mobileMenuBackdrop.hidden = true;
+  mobileMenuToggle.setAttribute("aria-expanded", "false");
+}
+
+function layoutForMobileMenu(isMobile) {
+  if (isMobile) {
+    mobileMenu.append(themeToggle, discordBanner, historyEl);
+  } else {
+    closeMobileMenu();
+    themeToggleAnchor.after(themeToggle);
+    discordBannerAnchor.after(discordBanner);
+    historyAnchor.after(historyEl);
+  }
+}
+
+mobileMenuToggle.addEventListener("click", () => {
+  if (mobileMenu.classList.contains("open")) closeMobileMenu();
+  else openMobileMenu();
+});
+mobileMenuClose.addEventListener("click", closeMobileMenu);
+mobileMenuBackdrop.addEventListener("click", closeMobileMenu);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeMobileMenu();
+});
+
+const mobileMenuQuery = window.matchMedia("(max-width: 700px)");
+layoutForMobileMenu(mobileMenuQuery.matches);
+mobileMenuQuery.addEventListener("change", (event) => layoutForMobileMenu(event.matches));
+
 let currentEventSource = null;
 
 form.addEventListener("submit", (event) => {
@@ -150,6 +204,7 @@ form.addEventListener("submit", (event) => {
     currentEventSource = null;
   }
 
+  closeMobileMenu();
   setLoading(true);
   answerCard.hidden = true;
   resetSearchSteps();

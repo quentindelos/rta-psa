@@ -63,31 +63,46 @@ body::before {
     url("/assets/car-pattern.png"),
     url("/assets/car-pattern.png"),
     url("/assets/car-pattern.png"),
+    url("/assets/car-pattern.png"),
+    url("/assets/car-pattern.png"),
+    url("/assets/car-pattern.png"),
+    url("/assets/car-pattern.png"),
+    url("/assets/car-pattern.png"),
     url("/assets/car-pattern.png");
   background-position:
-    44.7% 15.9%,
-    82.1% 55.1%,
-    66.2% 26.5%,
-    16.5% 85.1%,
-    60.7% 91.8%,
-    81.5% 94%,
-    44.1% 73.9%,
-    9% 39.1%,
-    66.7% 54%,
-    14.9% 25.3%,
-    37% 55.1%;
+    32.3% 11.8%,
+    92.9% 34.3%,
+    3.8% 7.1%,
+    68.4% 45.5%,
+    10.2% 54.3%,
+    53.7% 35.8%,
+    28.9% 38.7%,
+    11.7% 43.3%,
+    46% 70%,
+    66.3% 8.9%,
+    91.3% 10.7%,
+    49.6% 20.9%,
+    31.4% 67.4%,
+    12.2% 89.5%,
+    69.2% 68.5%,
+    28.7% 88.4%;
   background-size:
-    38px auto,
+    59px auto,
+    56px auto,
+    57px auto,
+    42px auto,
+    78px auto,
+    60px auto,
     54px auto,
-    49px auto,
-    32px auto,
-    38px auto,
-    26px auto,
-    32px auto,
-    41px auto,
-    28px auto,
-    48px auto,
-    48px auto;
+    46px auto,
+    45px auto,
+    42px auto,
+    70px auto,
+    67px auto,
+    62px auto,
+    52px auto,
+    75px auto,
+    47px auto;
 }
 
 :root[data-theme="dark"] body::before {
@@ -782,5 +797,131 @@ footer a {
 
   .lightbox {
     padding: 0.75rem;
+  }
+}
+
+/* Menu hamburger (mobile) : le bouton thème, le bandeau Discord et l'historique sont
+   déplacés ici en JS en dessous de 700px (voir layoutForMobileMenu dans app.js) au
+   lieu de rester dans le flux, pour ne pas manger tout l'écran. Sélecteurs à 2 classes
+   (.mobile-menu .xxx) volontairement plus spécifiques que les règles ci-dessus : ils
+   gagnent sur le style "en flux" de ces mêmes éléments sans avoir à dupliquer de
+   media query. */
+.mobile-menu-toggle {
+  display: none;
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 30;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.mobile-menu-toggle span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--fg);
+}
+
+.mobile-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.mobile-menu {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  width: min(320px, 85vw);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 1.1rem 1.5rem;
+  overflow-y: auto;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  transform: translateX(100%);
+  transition: transform 0.2s ease;
+}
+
+.mobile-menu.open {
+  transform: translateX(0);
+}
+
+.mobile-menu-close {
+  align-self: flex-end;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--fg);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mobile-menu .theme-toggle {
+  position: static;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  font-size: 1.05rem;
+}
+
+.mobile-menu .theme-toggle::after {
+  content: "Mode sombre / clair";
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.mobile-menu .discord-banner {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.mobile-menu .history {
+  margin-top: 0;
+}
+
+.mobile-menu .history-list {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.mobile-menu .history-item {
+  width: 100%;
+  max-width: 100%;
+}
+
+.mobile-menu .history-item-query,
+.mobile-menu .history-item-vehicle {
+  white-space: normal;
+}
+
+@media (max-width: 700px) {
+  .mobile-menu-toggle {
+    display: flex;
   }
 }
