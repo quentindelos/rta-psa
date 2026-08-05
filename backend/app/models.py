@@ -29,6 +29,7 @@ class SearchResponse(BaseModel):
 
 class AskResponse(BaseModel):
     query: str
+    title: str = ""
     answer: str
     answer_origin: Literal["rta", "web"]
     sources: list[Source] = []

@@ -11,14 +11,14 @@ from ..answer_cache import answer_cache
 from ..config import Settings, get_settings
 from ..index_store import PageEntry, index_store
 from ..models import AskResponse, Source, WebSource
-from ..vertex import RtaAnswer, embed_query, generate_answer, generate_web_answer
+from ..vertex import RtaAnswer, embed_query, generate_answer, generate_title, generate_web_answer
 
 router = APIRouter()
 
 
 def _sources_from(result: RtaAnswer, pages: list[PageEntry], settings: Settings) -> list[Source]:
     cited = set(result.cited_pages)
-    # Ne garde que les pages effectivement citées dans la réponse — sinon on
+    # Ne garde que les pages effectivement citées dans la réponse - sinon on
     # affiche tout le lot de la recherche, y compris des pages non pertinentes.
     cited_pages = [page for page in pages if page.page_label in cited] or pages
     return [
@@ -57,9 +57,10 @@ def ask(
 
     query_vector = embed_query(settings, q)
     top_k = k or settings.top_k_default
+    title = generate_title(settings, q, vehicle)
 
     # Les top_k pages les plus proches suffisent la plupart du temps ; si Gemini juge
-    # que ça ne répond pas à la question, on élargit avant d'abandonner la RTA — la
+    # que ça ne répond pas à la question, on élargit avant d'abandonner la RTA - la
     # bonne page est parfois juste hors du top_k initial.
     found = _try_rta(settings, q, vehicle, query_vector, top_k)
     if found is None and top_k < settings.top_k_wide:
@@ -68,12 +69,17 @@ def ask(
     if found is not None:
         result, pages = found
         response = AskResponse(
-            query=q, answer=result.answer, answer_origin="rta", sources=_sources_from(result, pages, settings)
+            query=q,
+            title=title,
+            answer=result.answer,
+            answer_origin="rta",
+            sources=_sources_from(result, pages, settings),
         )
     else:
         answer, web_sources = generate_web_answer(settings, q, vehicle)
         response = AskResponse(
             query=q,
+            title=title,
             answer=answer,
             answer_origin="web",
             web_sources=[WebSource(title=s.title, url=s.url) for s in web_sources],
@@ -98,31 +104,32 @@ def ask_stream(
     def generate() -> Iterator[str]:
         cached = answer_cache.get(q, vehicle)
         if cached is not None:
-            yield _sse("step", {"message": "Question déjà posée récemment — réponse en cache, pas de nouvelle recherche."})
+            yield _sse("step", {"message": "Question déjà posée récemment - réponse en cache, pas de nouvelle recherche."})
             yield _sse("result", cached.model_dump())
             return
 
         yield _sse("step", {"message": "Recherche des pages les plus proches dans la revue technique…"})
         query_vector = embed_query(settings, q)
         top_k = k or settings.top_k_default
+        title = generate_title(settings, q, vehicle)
         hits = index_store.search(query_vector, top_k)
 
         result: RtaAnswer | None = None
         pages: list[PageEntry] = []
         if hits:
             pages = [hit.page for hit in hits]
-            yield _sse("step", {"message": f"{len(pages)} page(s) trouvée(s) — lecture et rédaction de la réponse…"})
+            yield _sse("step", {"message": f"{len(pages)} page(s) trouvée(s) - lecture et rédaction de la réponse…"})
             result = generate_answer(settings, q, pages, vehicle)
 
         if (result is None or not result.found) and top_k < settings.top_k_wide:
             yield _sse(
                 "step",
-                {"message": "Rien de concluant dans les pages les plus proches — élargissement de la recherche…"},
+                {"message": "Rien de concluant dans les pages les plus proches - élargissement de la recherche…"},
             )
             wide_hits = index_store.search(query_vector, settings.top_k_wide)
             if wide_hits:
                 pages = [hit.page for hit in wide_hits]
-                yield _sse("step", {"message": f"{len(pages)} page(s) après élargissement — nouvelle lecture…"})
+                yield _sse("step", {"message": f"{len(pages)} page(s) après élargissement - nouvelle lecture…"})
                 result = generate_answer(settings, q, pages, vehicle)
             else:
                 result = None
@@ -130,16 +137,21 @@ def ask_stream(
         if result is not None and result.found:
             yield _sse("step", {"message": "Réponse trouvée dans la revue technique."})
             response = AskResponse(
-                query=q, answer=result.answer, answer_origin="rta", sources=_sources_from(result, pages, settings)
+                query=q,
+                title=title,
+                answer=result.answer,
+                answer_origin="rta",
+                sources=_sources_from(result, pages, settings),
             )
             answer_cache.set(q, vehicle, response)
             yield _sse("result", response.model_dump())
             return
 
-        yield _sse("step", {"message": "Non trouvé dans la revue technique — recherche sur le web…"})
+        yield _sse("step", {"message": "Non trouvé dans la revue technique - recherche sur le web…"})
         answer, web_sources = generate_web_answer(settings, q, vehicle)
         response = AskResponse(
             query=q,
+            title=title,
             answer=answer,
             answer_origin="web",
             web_sources=[WebSource(title=s.title, url=s.url) for s in web_sources],
