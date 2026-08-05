@@ -1,7 +1,7 @@
 """Charge l'index (metadata.jsonl + embeddings.npy + manifest.json) depuis GCS et
 sert la recherche par similarité cosinus (produit scalaire sur vecteurs déjà normalisés).
 
-Copie volontairement séparée de `ingestion/index_store.py` — le backend déployé et
+Copie volontairement séparée de `ingestion/index_store.py` - le backend déployé et
 le pipeline d'ingestion n'ont pas besoin de partager de dépendances.
 """
 from __future__ import annotations
@@ -27,7 +27,7 @@ class PageEntry:
     image_filename: str
     has_schematic: bool
     schematic_image_filenames: list[str] = field(default_factory=list)
-    # Numéro/libellé tel qu'imprimé sur la page (ex: "I", "XXII", "86-087") — peut
+    # Numéro/libellé tel qu'imprimé sur la page (ex: "I", "XXII", "86-087") - peut
     # diverger de page_num, voir ingestion/apply_page_labels.py.
     page_label: str = ""
 
@@ -53,7 +53,7 @@ class IndexStore:
 
         if not bucket.blob("index/manifest.json").exists():
             logger.warning(
-                "Aucun index trouvé dans gs://%s/index/ — aucune page ingérée pour "
+                "Aucun index trouvé dans gs://%s/index/ - aucune page ingérée pour "
                 "l'instant. L'app démarre avec un index vide.",
                 settings.gcs_bucket_index,
             )
@@ -80,7 +80,7 @@ class IndexStore:
         if manifest.get("embedding_model") != settings.embedding_model:
             logger.warning(
                 "Le modèle d'embedding de l'index (%s) ne correspond pas à la config "
-                "du backend (%s) — les scores de similarité seront incohérents.",
+                "du backend (%s) - les scores de similarité seront incohérents.",
                 manifest.get("embedding_model"),
                 settings.embedding_model,
             )

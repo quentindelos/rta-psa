@@ -16,6 +16,6 @@ def reload_index(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Jeton admin invalide")
     index_store.load(settings)
     # De nouvelles pages ingérées rendent les réponses en cache potentiellement
-    # obsolètes (une question "pas dans la RTA" pourrait maintenant y être) — on vide
+    # obsolètes (une question "pas dans la RTA" pourrait maintenant y être) - on vide
     # le cache plutôt que d'attendre son expiration naturelle.
     answer_cache.clear()
