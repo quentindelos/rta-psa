@@ -78,6 +78,22 @@
   </style>
 </head>
 <body>
+  <svg class="bg-pattern" aria-hidden="true" focusable="false">
+    <defs>
+      <pattern id="car-pattern" width="140" height="80" patternUnits="userSpaceOnUse" patternTransform="rotate(-8)">
+        <g transform="translate(20 20) scale(0.42)">
+          <path
+            d="M4 26 C4 21 8 18 14 18 L22 18 C27 10 38 6 50 6 C60 6 68 9 74 15 L80 18 C88 18 94 21 94 26 C94 28.5 92 30 88 30 L10 30 C6 30 4 28.5 4 26 Z"
+            fill="var(--fg)"
+          />
+          <circle cx="22" cy="30" r="7" fill="var(--fg)" />
+          <circle cx="78" cy="30" r="7" fill="var(--fg)" />
+        </g>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#car-pattern)" />
+  </svg>
+
   <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Changer de thème">🌙</button>
 
   <header>
