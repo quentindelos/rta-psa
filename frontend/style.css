@@ -38,12 +38,15 @@
   box-sizing: border-box;
 }
 
-/* Motif de fond : silhouettes de 106 éparpillées (positions/tailles différentes,
-   pas une grille en tuile) tirées d'une vraie photo (contours/ombres gardés, fond
-   blanc rendu transparent) plutôt qu'un dessin vectoriel - une seule image, répétée
-   en plusieurs calques CSS à des positions/tailles fixées à la main pour un rendu
-   "éparpillé" plutôt que mécanique. `filter: invert(1)` en thème sombre pour passer
-   du noir (thème clair) au blanc, sans avoir à générer deux images. */
+/* Motif de fond : silhouettes de 106 éparpillées (positions/tailles/rotations
+   différentes, pas une grille en tuile) tirées d'une vraie photo (contours/ombres
+   gardés, fond blanc rendu transparent) plutôt qu'un dessin vectoriel. Le CSS ne sait
+   pas faire pivoter un calque de background individuellement, donc la rotation est
+   précalculée : car-pattern-1.png à -8.png sont la même image pré-tournée à 8 angles
+   (voir le script utilisé dans l'historique de conversation), piochées au hasard par
+   position pour un rendu "de biais" plutôt que des silhouettes toutes droites.
+   `filter: invert(1)` en thème sombre pour passer du noir (thème clair) au blanc,
+   sans avoir à générer deux jeux d'images. */
 body::before {
   content: "";
   position: fixed;
@@ -53,22 +56,22 @@ body::before {
   pointer-events: none;
   background-repeat: no-repeat;
   background-image:
-    url("/assets/car-pattern.png"),
-    url("/assets/car-pattern.png"),
-    url("/assets/car-pattern.png"),
-    url("/assets/car-pattern.png"),
-    url("/assets/car-pattern.png"),
-    url("/assets/car-pattern.png"),
-    url("/assets/car-pattern.png"),
-    url("/assets/car-pattern.png"),
-    url("/assets/car-pattern.png"),
-    url("/assets/car-pattern.png"),
-    url("/assets/car-pattern.png"),
-    url("/assets/car-pattern.png"),
-    url("/assets/car-pattern.png"),
-    url("/assets/car-pattern.png"),
-    url("/assets/car-pattern.png"),
-    url("/assets/car-pattern.png");
+    url("/assets/car-pattern-7.png"),
+    url("/assets/car-pattern-6.png"),
+    url("/assets/car-pattern-3.png"),
+    url("/assets/car-pattern-8.png"),
+    url("/assets/car-pattern-1.png"),
+    url("/assets/car-pattern-8.png"),
+    url("/assets/car-pattern-4.png"),
+    url("/assets/car-pattern-3.png"),
+    url("/assets/car-pattern-7.png"),
+    url("/assets/car-pattern-6.png"),
+    url("/assets/car-pattern-5.png"),
+    url("/assets/car-pattern-1.png"),
+    url("/assets/car-pattern-2.png"),
+    url("/assets/car-pattern-4.png"),
+    url("/assets/car-pattern-2.png"),
+    url("/assets/car-pattern-5.png");
   background-position:
     32.3% 11.8%,
     92.9% 34.3%,
