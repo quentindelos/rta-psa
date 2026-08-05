@@ -1,5 +1,10 @@
 :root {
   color-scheme: light;
+  /* Largeur du contenu central (main/footer/bannière Discord) : un % de l'écran
+     plutôt qu'une largeur fixe, pour profiter de l'espace sur grand écran et
+     réduire le scroll vertical - plafonnée pour ne pas avoir des lignes de texte
+     illisibles sur un écran très large. */
+  --content-max-width: 1400px;
   --bg: #ffffff;
   --fg: #1a1a1a;
   --muted: #666666;
@@ -106,8 +111,8 @@ h1 {
   align-items: center;
   align-self: center;
   gap: 0.9rem;
-  width: 100%;
-  max-width: 960px;
+  width: 92%;
+  max-width: var(--content-max-width);
   margin: 0 0 1.75rem;
   padding: 0.9rem 1.2rem;
   border-radius: 12px;
@@ -168,9 +173,10 @@ h1 {
 }
 
 main {
-  max-width: 960px;
+  width: 92%;
+  max-width: var(--content-max-width);
   margin: 0;
-  padding: 0 1rem 3rem;
+  padding: 0 0 3rem;
 }
 
 #ask-form {
@@ -561,9 +567,10 @@ button:disabled {
 }
 
 footer {
-  max-width: 960px;
+  width: 92%;
+  max-width: var(--content-max-width);
   margin: 2rem 0 2.5rem;
-  padding: 0 1rem;
+  padding: 0;
   text-align: center;
   font-size: 0.85rem;
   color: var(--muted);

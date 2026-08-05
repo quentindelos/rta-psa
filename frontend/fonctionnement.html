@@ -10,7 +10,10 @@
     /* Styles propres à cette page : réutilisent les variables de style.css,
        mais le layout en "cartes" de texte n'existe pas ailleurs sur le site. */
     .doc-main {
-      max-width: 760px;
+      /* Plus large que le texte de la page d'accueil (readable jusqu'à ~90 caractères
+         par ligne) : cette page a un schéma SVG large qui profite de l'espace, et
+         élargir réduit d'autant le scroll vertical. */
+      max-width: 1000px;
     }
     .doc-section {
       margin: 0 0 1.75rem;
