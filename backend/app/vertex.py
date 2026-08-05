@@ -16,7 +16,7 @@ _ANSWER_PROMPT = """Tu réponds en français à une question sur une revue techn
 automobile, à partir UNIQUEMENT des extraits de pages fournis ci-dessous.
 
 La revue technique fournie est rédigée pour la Citroën Saxo, mais la Peugeot 106 est \
-mécaniquement identique (même plateforme, même mécanique, mêmes pièces — ce sont des \
+mécaniquement identique (même plateforme, même mécanique, mêmes pièces - ce sont des \
 "voitures jumelles"). Si la question porte sur une Peugeot 106, considère les extraits \
 parlant de la Saxo comme pertinents et réponds avec les informations qu'ils contiennent, \
 sauf si un extrait indique explicitement une différence entre les deux modèles. Le fait \
@@ -33,14 +33,14 @@ valeurs différentes, et précise lesquelles si les extraits le permettent.
 
 Attention : le 106 Rallye n'a PAS le même moteur que le 106 S16. Le S16 a le 1.6i 16 \
 soupapes TU5J4 (comme la Saxo VTS). Le Rallye a un moteur 8 soupapes différent selon la \
-phase (Phase 1 : 1.3i, Phase 2 : 1.6i) — ne confonds jamais les deux et n'applique pas aux \
+phase (Phase 1 : 1.3i, Phase 2 : 1.6i) - ne confonds jamais les deux et n'applique pas aux \
 Rallye des informations qui concernent spécifiquement le moteur 16v du S16/de la VTS.
 {vehicle_line}
 Réponds UNIQUEMENT avec un objet JSON valide (pas de balises markdown), avec exactement \
 ces clés :
 - "found_in_rta" : true si les extraits fournis permettent réellement de répondre à la \
 question posée, false si ce n'est pas le cas (sujet non couvert, extraits hors sujet, \
-etc.). Ne mets pas true juste parce que les extraits parlent du même thème général — il \
+etc.). Ne mets pas true juste parce que les extraits parlent du même thème général - il \
 faut qu'ils répondent vraiment à la question. Ne mets PAS false au seul motif que la \
 question parle de la 106 et les extraits de la Saxo (ou inversement).
 - "answer" : si found_in_rta est true, la réponse à la question, concise et directe, en \
@@ -50,19 +50,39 @@ version, privilégie l'information correspondant à cette version tout en mentio
 autres si elles sont proches dans le texte. Dès que la réponse contient plusieurs \
 éléments du même type (ex : légende d'un schéma avec repères, liste de \
 caractéristiques/valeurs, liste de pièces), présente-les sous forme de tableau Markdown \
-(en-tête + lignes séparées par des "|") plutôt qu'une phrase avec virgules — c'est \
+(en-tête + lignes séparées par des "|") plutôt qu'une phrase avec virgules - c'est \
 beaucoup plus lisible. Ne mets JAMAIS de colonne "Source"/"Page" dans ce tableau : les \
 pages utilisées sont déjà indiquées séparément, une colonne source dans le tableau \
-serait redondante (et souvent vide). Garde une phrase normale pour tout le reste \
-(réponse courte, explication, procédure). Si found_in_rta est false, une chaîne vide "".
+serait redondante (et souvent vide). Contraintes de format pour tout tableau : chaque \
+ligne (en-tête, séparateur, données) tient sur une seule ligne physique, sans retour à \
+la ligne à l'intérieur d'une cellule ; une cellule ne contient jamais de sous-liste à \
+puces ni un autre tableau, juste du texte court ; la ligne de séparation utilise des \
+tirets courts (ex : "---", pas une longue série de tirets). Garde une phrase normale \
+pour tout le reste (réponse courte, explication, procédure) - pas de titres Markdown \
+(#, ##, ###). Si found_in_rta est false, une chaîne vide "".
 - "cited_pages" : si found_in_rta est true, la liste des numéros de page (parmi ceux des \
-extraits fournis) RÉELLEMENT utilisés pour construire la réponse — uniquement celles qui \
+extraits fournis) RÉELLEMENT utilisés pour construire la réponse - uniquement celles qui \
 contiennent l'information demandée, pas toutes les pages fournies. Liste vide sinon.
 
 Question : {query}
 
 Extraits disponibles :
 {context}
+"""
+
+_TITLE_PROMPT = """Résume la question suivante, posée sur l'entretien/la réparation d'une \
+Peugeot 106, Citroën Saxo, Peugeot 205, Peugeot 206 ou Peugeot 306, en un titre court \
+(entre 3 et 6 mots) destiné à l'afficher dans une liste d'historique de questions. Le \
+titre doit rester spécifique au sujet exact de la question (pas générique du type \
+"Question sur la voiture"), sans article de politesse ni point final. Exemple : la \
+question "je voudrais mettre mon calculateur dans l'habitacle pour faire de la place \
+dans la baie moteur, je peux le faire comment et où je dois le placer ?" donne le titre \
+"Déplacer le calculateur dans l'habitacle".
+{vehicle_line}
+Réponds UNIQUEMENT avec un objet JSON valide (pas de balises markdown) de la forme \
+{{"title": "..."}}.
+
+Question : {query}
 """
 
 _WEB_ANSWER_PROMPT = """Tu es un assistant spécialisé sur l'entretien et la réparation \
@@ -72,17 +92,22 @@ partir d'une recherche web réelle, en t'appuyant sur des sources fiables (forum
 automobiles reconnus, documentation constructeur, sites de pièces détachées). Si tu \
 n'es pas sûr, dis-le clairement plutôt que d'inventer une réponse. Dès que la réponse \
 contient plusieurs éléments du même type (liste de pièces, caractéristiques, valeurs), \
-présente-les sous forme de tableau Markdown plutôt qu'une phrase avec virgules — mais \
+présente-les sous forme de tableau Markdown plutôt qu'une phrase avec virgules - mais \
 sans colonne "Source" dans ce tableau (les sources utilisées sont listées séparément \
-après ta réponse, pas besoin de les répéter en colonne). Certaines motorisations \
+après ta réponse, pas besoin de les répéter en colonne). Contraintes de format pour \
+tout tableau : chaque ligne (en-tête, séparateur, données) tient sur une seule ligne \
+physique, sans retour à la ligne à l'intérieur d'une cellule ; une cellule ne contient \
+jamais de sous-liste à puces ni un autre tableau, juste du texte court ; la ligne de \
+séparation utilise des tirets courts (ex : "---", pas une longue série de tirets). Pas \
+de titres Markdown (#, ##, ###) dans ta réponse. Certaines motorisations \
 existent en plusieurs variantes/normes moteur aux caractéristiques différentes (ex : le \
 1.6i 16v des Saxo VTS / 106 S16 existe en versions moteur TU5J4 L3 et TU5J4 L4) : si tes \
 sources donnent des valeurs différentes pour une même caractéristique sans que la \
-question précise la version exacte, n'en choisis pas une arbitrairement — explique que \
+question précise la version exacte, n'en choisis pas une arbitrairement - explique que \
 la valeur dépend de la version moteur et donne les différentes valeurs trouvées avec, si \
 possible, à quelle version chacune correspond. Attention : le 106 Rallye n'a PAS le même \
 moteur que le 106 S16 (S16 = 1.6i 16 soupapes TU5J4 comme la VTS ; Rallye = moteur 8 \
-soupapes différent selon la phase, 1.3i en Phase 1, 1.6i en Phase 2) — ne les confonds \
+soupapes différent selon la phase, 1.3i en Phase 1, 1.6i en Phase 2) - ne les confonds \
 jamais.
 {vehicle_line}
 Question : {query}
@@ -159,6 +184,24 @@ def generate_answer(
         answer=data.get("answer", "") or "",
         cited_pages=cited_pages,
     )
+
+
+def generate_title(settings: Settings, query: str, vehicle: str | None = None) -> str:
+    """Titre court pour l'historique - indépendant du fait que la réponse vienne de la
+    RTA ou du web, donc généré une seule fois à partir de la question uniquement."""
+    client = _client(settings)
+    prompt = _TITLE_PROMPT.format(query=query, vehicle_line=_vehicle_line(vehicle))
+    try:
+        response = client.models.generate_content(
+            model=settings.gemini_model,
+            contents=prompt,
+            config=types.GenerateContentConfig(response_mime_type="application/json"),
+        )
+        data = json.loads(response.text or "{}")
+    except Exception:  # noqa: BLE001 - un titre manquant n'est pas bloquant, l'appelant retombe sur la question brute
+        return ""
+    title = data.get("title", "") or ""
+    return title.strip()
 
 
 def generate_web_answer(

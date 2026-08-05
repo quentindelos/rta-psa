@@ -425,6 +425,22 @@ button:disabled {
   color: var(--fg);
 }
 
+.answer-text h3,
+.answer-text h4,
+.answer-text h5,
+.answer-text h6 {
+  margin: 1.1rem 0 0.6rem;
+  color: var(--fg);
+  font-size: 1rem;
+}
+
+.answer-text h3:first-child,
+.answer-text h4:first-child,
+.answer-text h5:first-child,
+.answer-text h6:first-child {
+  margin-top: 0;
+}
+
 .answer-table-wrap {
   margin: 0 0 0.9rem;
   overflow-x: auto;
@@ -562,10 +578,16 @@ footer a {
   font-size: 0.8rem;
 }
 
+.disclaimer {
+  margin-bottom: 0.9rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
 /* Grand écran : bouton Discord fixe en haut à gauche de l'écran, avec
    l'historique juste en dessous. Le padding réservé est symétrique (gauche
-   ET droite) pour que le contenu central reste centré sur l'écran entier —
-   pas juste dans l'espace restant après la sidebar — ce qui réclame un
+   ET droite) pour que le contenu central reste centré sur l'écran entier -
+   pas juste dans l'espace restant après la sidebar - ce qui réclame un
    écran assez large ; en dessous, on retombe sur la mise en page pleine
    largeur (identique à la tablette/mobile), déjà propre à toutes les tailles. */
 @media (min-width: 1400px) {

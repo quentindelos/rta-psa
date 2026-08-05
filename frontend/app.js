@@ -23,10 +23,12 @@ const HISTORY_MAX = 12;
 function loadHistory() {
   try {
     const raw = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
-    // Anciennes entrées enregistrées avant l'ajout du contexte véhicule : de simples
-    // chaînes plutôt que des objets {query, vehicle, vehicleLabel}.
+    // Anciennes entrées enregistrées avant l'ajout du contexte véhicule (ou de la
+    // réponse) : de simples chaînes, ou des objets sans "response".
     return raw.map((entry) =>
-      typeof entry === "string" ? { query: entry, vehicle: "", vehicleLabel: "" } : entry
+      typeof entry === "string"
+        ? { query: entry, vehicle: "", vehicleLabel: "", response: null }
+        : { response: null, ...entry }
     );
   } catch {
     return [];
@@ -37,9 +39,13 @@ function sameEntry(a, query, vehicle) {
   return a.query === query && a.vehicle === vehicle;
 }
 
-function saveQueryToHistory(query, vehicle, vehicleLabel) {
+// On garde la réponse complète avec chaque entrée d'historique : reposer une question
+// depuis l'historique doit réafficher EXACTEMENT ce qui avait été répondu, pas relancer
+// une recherche qui - une fois le cache serveur (TTL 6h) expiré - peut regénérer une
+// réponse différente (LLM non déterministe).
+function saveQueryToHistory(query, vehicle, vehicleLabel, response) {
   const history = loadHistory().filter((entry) => !sameEntry(entry, query, vehicle));
-  history.unshift({ query, vehicle, vehicleLabel });
+  history.unshift({ query, vehicle, vehicleLabel, response });
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_MAX)));
   renderHistory();
 }
@@ -69,7 +75,10 @@ function renderHistory() {
 
     const queryLabel = document.createElement("span");
     queryLabel.className = "history-item-query";
-    queryLabel.textContent = entry.query;
+    // Le titre court (reformulé par Gemini) est plus lisible dans la liste que la
+    // question brute, parfois longue - la question complète reste dans le tooltip.
+    queryLabel.textContent = (entry.response && entry.response.title) || entry.query;
+    queryLabel.title = entry.query;
     textBtn.appendChild(queryLabel);
 
     if (entry.vehicleLabel) {
@@ -82,7 +91,22 @@ function renderHistory() {
     textBtn.addEventListener("click", () => {
       queryInput.value = entry.query;
       vehicleSelect.value = entry.vehicle;
-      form.requestSubmit();
+      if (entry.response) {
+        // Réaffiche instantanément la réponse d'origine, sans repasser par le réseau
+        // ni par le cache serveur (qui peut avoir expiré et regénérer autre chose).
+        if (currentEventSource) {
+          currentEventSource.close();
+          currentEventSource = null;
+        }
+        setLoading(false);
+        statusEl.hidden = true;
+        resetSearchSteps();
+        renderAnswer(entry.response);
+      } else {
+        // Entrée d'historique enregistrée avant l'ajout du cache local : on n'a que
+        // la question, il faut relancer la recherche.
+        form.requestSubmit();
+      }
     });
 
     const removeBtn = document.createElement("button");
@@ -146,8 +170,9 @@ form.addEventListener("submit", (event) => {
   es.addEventListener("result", (event) => {
     es.close();
     currentEventSource = null;
-    renderAnswer(JSON.parse(event.data));
-    saveQueryToHistory(query, vehicle, vehicleLabel);
+    const data = JSON.parse(event.data);
+    renderAnswer(data);
+    saveQueryToHistory(query, vehicle, vehicleLabel, data);
     setLoading(false);
   });
 
@@ -190,7 +215,7 @@ function renderAnswer(data) {
 
   if (data.answer_origin === "web") {
     originBadge.className = "origin-badge origin-badge--web";
-    originBadge.textContent = "⚠ Non trouvé dans la RTA — réponse basée sur le web";
+    originBadge.textContent = "⚠ Non trouvé dans la RTA - réponse basée sur le web";
     sourcesEl.innerHTML = "";
     renderWebSources(data.web_sources);
   } else {
@@ -212,7 +237,7 @@ function renderSources(sources) {
       if (source.schematic_image_urls && source.schematic_image_urls.length > 0) {
         return source.schematic_image_urls.map((url, i) => {
           const label =
-            source.schematic_image_urls.length > 1 ? `Schéma ${i + 1} — page ${source.page_num}` : `Schéma — page ${source.page_num}`;
+            source.schematic_image_urls.length > 1 ? `Schéma ${i + 1} - page ${source.page_num}` : `Schéma - page ${source.page_num}`;
           return `
             <figure class="source-card source-card--schematic">
               <img
@@ -290,18 +315,21 @@ function escapeHtml(str) {
 }
 
 function inlineFormat(line) {
-  // gras uniquement (**texte**) — c'est le seul style markdown que Gemini utilise ici
+  // gras uniquement (**texte**) - c'est le seul style markdown que Gemini utilise ici
   return escapeHtml(line).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 }
 
-const TABLE_ROW_RE = /^\|(.+)\|$/;
-const TABLE_SEPARATOR_RE = /^\|?(\s*:?-{2,}:?\s*\|)+\s*:?-{2,}:?\s*\|?$/;
+// Volontairement tolérants : Gemini ne termine pas toujours une ligne de tableau par
+// "|", et les lignes de séparation ("|---|:---|") peuvent contenir un nombre de tirets
+// variable (parfois très long si le modèle "aligne" les colonnes). On ne veut pas
+// perdre le tableau - ni afficher des tirets/pipes bruts en repli - pour si peu.
+const TABLE_ROW_RE = /^\|(.*)$/;
+const TABLE_SEPARATOR_RE = /^\|?[\s|:-]*-{2,}[\s|:-]*$/;
 
 function splitTableRow(row) {
-  return row
-    .split("|")
-    .map((cell) => cell.trim())
-    .filter((cell, index, cells) => !(cell === "" && (index === 0 || index === cells.length - 1)));
+  const trimmed = row.trim();
+  const withoutEdgePipes = trimmed.replace(/^\|/, "").replace(/\|$/, "");
+  return withoutEdgePipes.split("|").map((cell) => cell.trim());
 }
 
 function renderTable(header, rows) {
@@ -321,7 +349,7 @@ function renderMarkdown(raw) {
   let i = 0;
   // Gemini écrit souvent chaque étape avec "1." (le renderer est censé
   // renuméroter), mais dès qu'un paragraphe ou une liste à puces s'intercale
-  // entre deux étapes, on referme le <ol> — et un nouveau <ol> recommence à 1
+  // entre deux étapes, on referme le <ol> - et un nouveau <ol> recommence à 1
   // en HTML. On fait donc continuer la numérotation entre les blocs.
   let nextOrderedNumber = 1;
 
@@ -337,6 +365,15 @@ function renderMarkdown(raw) {
 
     if (trimmed === "") {
       flushParagraph();
+      i++;
+      continue;
+    }
+
+    const heading = trimmed.match(/^(#{1,6})\s+(.*)$/);
+    if (heading) {
+      flushParagraph();
+      const level = Math.min(heading[1].length + 2, 6); // ### -> h5, jamais h1/h2 (déjà pris par le titre de page)
+      html.push(`<h${level}>${inlineFormat(heading[2])}</h${level}>`);
       i++;
       continue;
     }
