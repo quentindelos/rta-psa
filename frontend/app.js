@@ -51,9 +51,13 @@ const VEHICLE_OPTIONS = {
       ["Peugeot 106 Rallye 1.6i 8v (Phase 2)", "106 Rallye Phase 2 — 1.6i 8v"],
     ],
   },
+  // La RTA Diesel ne couvre qu'un seul moteur : le 1.5D (TUD5, code moteur VJZ, 58 ch) -
+  // ni Saxo ni 106 n'ont jamais reçu d'autre motorisation Diesel (pas de turbo, pas de
+  // HDi) sur cette génération, donc il n'y a pas d'autre variante moteur à lister ici
+  // (contrairement à l'essence, qui a plusieurs cylindrées/motorisations).
   diesel: {
-    "Citroën Saxo": [["Citroën Saxo Diesel", "Saxo Diesel"]],
-    "Peugeot 106": [["Peugeot 106 Diesel", "106 Diesel"]],
+    "Citroën Saxo": [["Citroën Saxo 1.5D", "Saxo 1.5D"]],
+    "Peugeot 106": [["Peugeot 106 1.5D", "106 1.5D"]],
   },
 };
 
