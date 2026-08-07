@@ -62,7 +62,13 @@ pour tout le reste (réponse courte, explication, procédure) - pas de titres Ma
 (#, ##, ###). Si found_in_rta est false, une chaîne vide "".
 - "cited_pages" : si found_in_rta est true, la liste des numéros de page (parmi ceux des \
 extraits fournis) RÉELLEMENT utilisés pour construire la réponse - uniquement celles qui \
-contiennent l'information demandée, pas toutes les pages fournies. Liste vide sinon.
+contiennent l'information demandée, pas toutes les pages fournies. Il n'y a AUCUNE limite \
+au nombre de pages à citer : si 5 pages différentes apportent chacune une information \
+utile à la réponse (ex : plusieurs schémas électriques différents, une procédure étalée \
+sur plusieurs pages, plusieurs tableaux de caractéristiques), cite-les TOUTES - n'en \
+choisis pas arbitrairement une ou deux par souci de concision. À l'inverse, une page qui \
+n'apporte rien de concret à cette question précise ne doit pas être citée juste parce \
+qu'elle fait partie des extraits fournis. Liste vide si found_in_rta est false.
 
 Question : {query}
 
@@ -108,6 +114,12 @@ RTA pour éviter la redondance.
 réponds uniquement à partir du web, en le précisant clairement.
 - Si tu n'es pas sûr d'une information (RTA comme web), dis-le clairement plutôt que \
 d'inventer.
+- N'invente aucune limite au nombre de pages RTA citées : si plusieurs pages apportent \
+chacune une information utile (plusieurs schémas électriques différents, une procédure \
+étalée sur plusieurs pages, plusieurs tableaux de caractéristiques...), cite-les TOUTES \
+avec leur "(RTA, page X)" respectif - ne te limite pas à une ou deux pages par souci de \
+concision. À l'inverse, ne cite jamais une page qui n'apporte rien de concret à cette \
+question précise.
 - Dès que la réponse contient plusieurs éléments du même type (légende de schéma, liste \
 de caractéristiques/valeurs, liste de pièces), présente-les sous forme de tableau \
 Markdown (en-tête + lignes séparées par des "|") plutôt qu'une phrase avec virgules — \
@@ -223,13 +235,31 @@ def generate_title(settings: Settings, query: str, vehicle: str | None = None) -
     return title.strip()
 
 
-def _rta_context(rta_result: RtaAnswer, pages: list[PageEntry]) -> str:
+def _rta_context(rta_result: RtaAnswer, pages: list[PageEntry], fuel: str | None) -> str:
     if not rta_result.found:
         return "(La RTA ne couvre pas ce sujet — aucune information pertinente trouvée.)"
     cited = set(rta_result.cited_pages)
     cited_pages = [p for p in pages if p.page_label in cited] or pages
     extracts = "\n\n".join(f"--- Page {p.page_label} ---\n{p.text}" for p in cited_pages)
-    return f"Réponse RTA : {rta_result.answer}\n\nExtraits RTA cités (pages {', '.join(sorted(cited)) or '?'}) :\n{extracts}"
+    context = f"Réponse RTA : {rta_result.answer}\n\nExtraits RTA cités (pages {', '.join(sorted(cited)) or '?'}) :\n{extracts}"
+
+    # Repli inter-motorisation (voir _search_rta) : la RTA scindée essence/diesel n'avait \
+    # rien de spécifique côté {fuel}, ces extraits viennent donc de l'autre motorisation.
+    other_variant = {p.variant for p in cited_pages} - {fuel, "commun"}
+    if fuel and other_variant:
+        other = "essence" if fuel == "diesel" else "diesel"
+        context += (
+            f"\n\n(Remarque : le véhicule précisé est {fuel}, mais aucune information "
+            f"spécifiquement {fuel} n'a été trouvée dans la RTA pour ce sujet précis - les "
+            f"extraits ci-dessus viennent donc de la partie {other} du manuel. La mécanique "
+            "hors moteur/injection (freins, carrosserie, direction, suspension, habitacle...) "
+            "est généralement identique entre les deux motorisations, donc ces extraits "
+            "restent probablement valables. Si l'extrait concerne spécifiquement le moteur, "
+            "l'injection ou un système propre à une motorisation, dis clairement que cette "
+            f"info vient de la partie {other} de la RTA et peut ne pas s'appliquer telle "
+            f"quelle à un modèle {fuel}.)"
+        )
+    return context
 
 
 def generate_combined_answer(
@@ -238,6 +268,7 @@ def generate_combined_answer(
     rta_result: RtaAnswer,
     pages: list[PageEntry],
     vehicle: str | None = None,
+    fuel: str | None = None,
 ) -> tuple[str, list[WebSourceInfo]]:
     """Fait toujours une recherche web réelle (grounding Gemini) et la combine avec ce que
     dit la RTA (déjà extrait par generate_answer) en une seule réponse, chaque information
@@ -248,7 +279,7 @@ def generate_combined_answer(
     prompt = _COMBINED_ANSWER_PROMPT.format(
         query=query,
         vehicle_line=_vehicle_line(vehicle),
-        rta_context=_rta_context(rta_result, pages),
+        rta_context=_rta_context(rta_result, pages, fuel),
     )
     response = client.models.generate_content(
         model=settings.gemini_model,

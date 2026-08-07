@@ -52,9 +52,15 @@ def _search_rta(
 
 
 def _answer_from(
-    settings: Settings, q: str, title: str, vehicle: str | None, rta_result: RtaAnswer, pages: list[PageEntry]
+    settings: Settings,
+    q: str,
+    title: str,
+    vehicle: str | None,
+    fuel: str | None,
+    rta_result: RtaAnswer,
+    pages: list[PageEntry],
 ) -> AskResponse:
-    combined_answer, web_sources = generate_combined_answer(settings, q, rta_result, pages, vehicle)
+    combined_answer, web_sources = generate_combined_answer(settings, q, rta_result, pages, vehicle, fuel)
     return AskResponse(
         query=q,
         title=title,
@@ -87,8 +93,14 @@ def ask(
     rta_result, pages = _search_rta(settings, q, vehicle, fuel, query_vector, top_k)
     if not rta_result.found and top_k < settings.top_k_wide:
         rta_result, pages = _search_rta(settings, q, vehicle, fuel, query_vector, settings.top_k_wide)
+    if not rta_result.found and fuel:
+        # Rien de spécifique côté {fuel} : beaucoup de chapitres (freins, carrosserie,
+        # direction...) sont identiques entre essence et diesel - on retente sans filtre
+        # carburant avant d'abandonner la RTA (voir _rta_context pour l'avertissement
+        # ajouté au prompt dans ce cas).
+        rta_result, pages = _search_rta(settings, q, vehicle, None, query_vector, settings.top_k_wide)
 
-    response = _answer_from(settings, q, title, vehicle, rta_result, pages)
+    response = _answer_from(settings, q, title, vehicle, fuel, rta_result, pages)
     answer_cache.set(q, vehicle, fuel, response)
     return response
 
@@ -133,6 +145,15 @@ def ask_stream(
             if rta_result.found:
                 yield _sse("step", {"message": f"{len(pages)} page(s) pertinente(s) après élargissement."})
 
+        if not rta_result.found and fuel:
+            yield _sse(
+                "step",
+                {"message": "Rien de spécifique côté carburant précisé - recherche dans l'autre motorisation…"},
+            )
+            rta_result, pages = _search_rta(settings, q, vehicle, None, query_vector, settings.top_k_wide)
+            if rta_result.found:
+                yield _sse("step", {"message": f"{len(pages)} page(s) pertinente(s) trouvée(s) (autre motorisation)."})
+
         if rta_result.found:
             yield _sse("step", {"message": "Recherche complémentaire sur le web et rédaction de la réponse…"})
         else:
@@ -141,7 +162,7 @@ def ask_stream(
                 {"message": "Non trouvé dans la revue technique - recherche sur le web et rédaction de la réponse…"},
             )
 
-        response = _answer_from(settings, q, title, vehicle, rta_result, pages)
+        response = _answer_from(settings, q, title, vehicle, fuel, rta_result, pages)
         answer_cache.set(q, vehicle, fuel, response)
         yield _sse("result", response.model_dump())
 
