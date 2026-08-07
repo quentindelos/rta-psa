@@ -22,7 +22,6 @@ const discordBanner = document.querySelector(".discord-banner");
 
 const THEME_KEY = "rta-psa-theme";
 const HISTORY_KEY = "rta-psa-history";
-const HISTORY_MAX = 12;
 // Nombre de tours précédents envoyés au serveur pour qu'une question de suivi garde le
 // fil (voir aussi _MAX_HISTORY_TURNS côté backend, qui retronque de toute façon).
 const HISTORY_TURNS_SENT = 4;
@@ -146,6 +145,23 @@ function loadHistory() {
   }
 }
 
+// Pas de limite arbitraire sur le nombre de conversations gardées - on essaie de tout
+// garder. localStorage fait généralement 5-10 Mo par site, largement suffisant pour des
+// centaines de conversations ; si jamais le quota est dépassé, on supprime les
+// conversations les plus anciennes (en fin de liste, la plus récente est toujours en
+// tête via unshift) jusqu'à ce que ça rentre, plutôt que de perdre toute la sauvegarde.
+function persistHistory(history) {
+  while (history.length > 0) {
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+      return;
+    } catch {
+      history.pop();
+    }
+  }
+  localStorage.removeItem(HISTORY_KEY);
+}
+
 // On garde la réponse complète avec chaque tour de conversation : reposer une question
 // depuis l'historique doit réafficher EXACTEMENT ce qui avait été répondu, pas relancer
 // une recherche qui - une fois le cache serveur (TTL 6h) expiré - peut regénérer une
@@ -153,13 +169,13 @@ function loadHistory() {
 function saveConversationToHistory(conversation) {
   const history = loadHistory().filter((entry) => entry.id !== conversation.id);
   history.unshift({ ...conversation });
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_MAX)));
+  persistHistory(history);
   renderHistory();
 }
 
 function removeConversationFromHistory(id) {
   const history = loadHistory().filter((entry) => entry.id !== id);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  persistHistory(history);
   renderHistory();
   if (activeConversation && activeConversation.id === id) startNewConversation();
 }
