@@ -3,12 +3,28 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>RTA 106 / Saxo — Recherche</title>
+  <title>RTA 106 / Saxo - Recherche</title>
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Changer de thème">🌙</button>
+
+  <button
+    id="mobile-menu-toggle"
+    class="mobile-menu-toggle"
+    type="button"
+    aria-label="Ouvrir le menu"
+    aria-haspopup="true"
+    aria-expanded="false"
+    aria-controls="mobile-menu"
+  >
+    <span></span><span></span><span></span>
+  </button>
+  <div id="mobile-menu-backdrop" class="mobile-menu-backdrop" hidden></div>
+  <nav id="mobile-menu" class="mobile-menu" aria-label="Menu">
+    <button id="mobile-menu-close" class="mobile-menu-close" type="button" aria-label="Fermer le menu">×</button>
+  </nav>
 
   <header>
     <h1>Revue technique 106 / Saxo</h1>
@@ -29,7 +45,7 @@
     </svg>
     <span class="discord-text">
       <strong>Rejoins la communauté Discord</strong>
-      <span>106, Saxo, 205, 206, 306 — entraide et tutos entre propriétaires</span>
+      <span>106, Saxo, 205, 206, 306 - entraide et tutos entre propriétaires</span>
     </span>
     <span class="discord-cta">Rejoindre →</span>
   </a>
@@ -76,6 +92,11 @@
   </main>
 
   <footer>
+    <p class="disclaimer">
+      Projet personnel, non officiel - réponses générées par IA, à titre indicatif
+      uniquement, à vérifier avant toute intervention.
+      <a href="/fonctionnement">Comment ça marche, et ses limites →</a>
+    </p>
     <p>
       Un bug ou un souci sur le site ?
       <a href="https://www.instagram.com/la106noire/" target="_blank" rel="noopener">
@@ -83,7 +104,7 @@
       </a>
     </p>
     <p class="copyright">
-      © 2026 Quentin Delos —
+      © 2026 Quentin Delos -
       <a href="https://quentindelos.fr" target="_blank" rel="noopener">quentindelos.fr</a>
     </p>
   </footer>

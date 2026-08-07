@@ -1,4 +1,4 @@
-"""Cache mémoire (par instance Cloud Run, perdu au redémarrage — ça suffit ici, pas
+"""Cache mémoire (par instance Cloud Run, perdu au redémarrage - ça suffit ici, pas
 besoin d'un cache partagé pour ce volume de trafic) des réponses de /api/ask.
 
 Politique d'expiration : TTL de 6h (assez long pour absorber les questions répétées

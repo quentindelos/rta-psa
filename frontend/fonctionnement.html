@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Comment ça marche - RTA 106 / Saxo</title>
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    /* Styles propres à cette page : réutilisent les variables de style.css,
+       mais le layout en "cartes" de texte n'existe pas ailleurs sur le site. */
+    .doc-main {
+      /* Plus large que le texte de la page d'accueil (readable jusqu'à ~90 caractères
+         par ligne) : cette page a un schéma SVG large qui profite de l'espace, et
+         élargir réduit d'autant le scroll vertical. */
+      max-width: 1000px;
+    }
+    .doc-section {
+      margin: 0 0 1.75rem;
+      padding: 1.25rem 1.4rem;
+      border-radius: 12px;
+      background: var(--card-bg);
+    }
+    .doc-section h2 {
+      margin: 0 0 0.75rem;
+      font-size: 1.15rem;
+    }
+    .doc-section p {
+      margin: 0 0 0.9rem;
+      line-height: 1.6;
+    }
+    .doc-section p:last-child {
+      margin-bottom: 0;
+    }
+    .doc-section ol,
+    .doc-section ul {
+      margin: 0 0 0.9rem;
+      padding-left: 1.3rem;
+      line-height: 1.6;
+    }
+    .doc-section li {
+      margin-bottom: 0.5rem;
+    }
+    .doc-section li:last-child {
+      margin-bottom: 0;
+    }
+    .doc-warning {
+      border: 1px solid var(--warning);
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+    .doc-warning h2 {
+      color: var(--warning);
+    }
+    .doc-diagram {
+      width: 100%;
+      height: auto;
+      margin: 0.25rem 0 1.1rem;
+    }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 1.5rem;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.95rem;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.9em;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.05rem 0.35rem;
+    }
+  </style>
+</head>
+<body>
+  <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Changer de thème">🌙</button>
+
+  <header>
+    <h1>Comment fonctionne ce site</h1>
+    <p class="subtitle">Fonctionnement, sources des réponses, et limites - en toute transparence</p>
+  </header>
+
+  <main class="doc-main">
+    <a class="back-link" href="/">← Retour à la recherche</a>
+
+    <section class="doc-section doc-warning">
+      <h2>⚠ Avant tout : ce que ce site n'est pas</h2>
+      <p>
+        C'est un <strong>projet personnel</strong>, fait sur mon temps libre pour ma propre 106 et
+        pour la communauté qui traîne autour - ce n'est ni un produit officiel Peugeot/Citroën, ni
+        un service professionnel, ni une source faisant autorité en matière de réparation automobile.
+      </p>
+      <p>
+        Les réponses sont générées automatiquement par une IA (Gemini, de Google) à partir de la
+        revue technique et, à défaut, d'une recherche web. Elles peuvent être incomplètes, mal
+        interprétées ou tout simplement fausses - l'IA peut se tromper, surtout sur une intervention
+        mécanique où une valeur, un ordre d'étapes ou un branchement électrique erroné peut être
+        dangereux (risque de panne, de court-circuit, d'incendie, ou pire).
+      </p>
+      <p>
+        <strong>Utilise ce site à titre indicatif uniquement.</strong> Vérifie toujours les
+        informations importantes (couples de serrage, branchements électriques, procédures de
+        sécurité) dans la revue technique papier/officielle ou auprès d'un professionnel avant
+        d'intervenir sur ton véhicule. Je ne peux être tenu responsable d'un dommage, quel qu'il
+        soit, causé par l'utilisation des informations fournies ici.
+      </p>
+    </section>
+
+    <section class="doc-section">
+      <h2>Le principe en une phrase</h2>
+      <p>
+        Tu poses une question en français ; le site cherche d'abord la réponse dans les pages
+        scannées de la revue technique (RTA) officielle de la Saxo/106, et seulement si elle ne
+        couvre pas le sujet, il complète avec une recherche web classique - en te disant toujours
+        clairement d'où vient la réponse.
+      </p>
+    </section>
+
+    <section class="doc-section">
+      <h2>Le pipeline, étape par étape</h2>
+
+      <svg class="doc-diagram" viewBox="0 0 720 300" role="img" aria-labelledby="diagram-title">
+        <title id="diagram-title">
+          Schéma : la question est transformée en vecteur, comparée aux pages indexées de la RTA ;
+          si une page pertinente est trouvée, Gemini rédige une réponse sourcée à partir de cette
+          page ; sinon, une recherche web prend le relais.
+        </title>
+
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)" />
+          </marker>
+        </defs>
+
+        <!-- Question -->
+        <rect x="10" y="130" width="120" height="50" rx="8" fill="var(--bg)" stroke="var(--border)" />
+        <text x="70" y="160" text-anchor="middle" fill="var(--fg)" font-size="13">Ta question</text>
+
+        <line x1="130" y1="155" x2="172" y2="155" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arrow)" />
+
+        <!-- Embedding -->
+        <rect x="174" y="130" width="130" height="50" rx="8" fill="var(--bg)" stroke="var(--border)" />
+        <text x="239" y="152" text-anchor="middle" fill="var(--fg)" font-size="12">Vectorisation</text>
+        <text x="239" y="168" text-anchor="middle" fill="var(--muted)" font-size="10.5">(embedding)</text>
+
+        <line x1="304" y1="155" x2="346" y2="155" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arrow)" />
+
+        <!-- Recherche vectorielle -->
+        <rect x="348" y="130" width="150" height="50" rx="8" fill="var(--bg)" stroke="var(--border)" />
+        <text x="423" y="152" text-anchor="middle" fill="var(--fg)" font-size="12">Recherche dans l'index</text>
+        <text x="423" y="168" text-anchor="middle" fill="var(--muted)" font-size="10.5">(pages RTA les + proches)</text>
+
+        <line x1="498" y1="155" x2="498" y2="155" />
+
+        <!-- branch up: found -->
+        <path d="M498,145 C540,110 540,70 570,55" fill="none" stroke="var(--success)" stroke-width="1.5" marker-end="url(#arrow)" />
+        <text x="500" y="90" fill="var(--success)" font-size="10.5">pertinent trouvé</text>
+
+        <!-- branch down: not found -->
+        <path d="M498,165 C540,205 540,245 570,255" fill="none" stroke="var(--warning)" stroke-width="1.5" marker-end="url(#arrow)" />
+        <text x="500" y="235" fill="var(--warning)" font-size="10.5">rien de concluant</text>
+
+        <!-- RTA answer box -->
+        <rect x="572" y="20" width="138" height="60" rx="8" fill="var(--bg)" stroke="var(--success)" />
+        <text x="641" y="44" text-anchor="middle" fill="var(--fg)" font-size="12">Gemini rédige</text>
+        <text x="641" y="58" text-anchor="middle" fill="var(--fg)" font-size="12">à partir des pages</text>
+        <text x="641" y="72" text-anchor="middle" fill="var(--success)" font-size="10.5">✓ réponse RTA</text>
+
+        <!-- Web fallback box -->
+        <rect x="572" y="225" width="138" height="60" rx="8" fill="var(--bg)" stroke="var(--warning)" />
+        <text x="641" y="249" text-anchor="middle" fill="var(--fg)" font-size="12">Recherche web</text>
+        <text x="641" y="263" text-anchor="middle" fill="var(--fg)" font-size="12">(Google, via Gemini)</text>
+        <text x="641" y="277" text-anchor="middle" fill="var(--warning)" font-size="10.5">⚠ réponse web</text>
+      </svg>
+
+      <ol>
+        <li>
+          <strong>Indexation (faite une fois, en amont)</strong> - chaque page de la revue technique
+          Saxo (valable aussi pour la 106, mécaniquement identique) est scannée puis transformée en
+          empreinte numérique (<em>embedding</em>) qui capture son sens, pas juste les mots qu'elle
+          contient.
+        </li>
+        <li>
+          <strong>Ta question devient elle aussi un embedding</strong>, comparé à celui de toutes les
+          pages : le site retient les pages dont le sens est le plus proche de ta question.
+        </li>
+        <li>
+          <strong>Gemini lit ces pages</strong> (et seulement celles-là - pas la revue entière) et
+          rédige une réponse concise en citant les numéros de page utilisés. S'il juge que ces pages
+          ne répondent pas vraiment à la question, la recherche s'élargit une fois avant d'abandonner
+          la RTA.
+        </li>
+        <li>
+          <strong>Si rien dans la RTA ne couvre le sujet</strong> (ex : une modification non prévue
+          par le constructeur), Gemini fait une vraie recherche web et répond en citant ses sources -
+          le site affiche alors un badge orange <em>« Non trouvé dans la RTA »</em> bien visible pour
+          que tu saches que ce n'est plus la documentation officielle.
+        </li>
+        <li>
+          <strong>Mise en cache</strong> - une question déjà posée récemment n'est pas régénérée
+          (réponse gardée en mémoire côté serveur quelques heures) ; côté navigateur, ton historique
+          garde aussi la réponse exacte de chaque question pour la retrouver instantanément, même
+          après l'expiration du cache serveur.
+        </li>
+      </ol>
+    </section>
+
+    <section class="doc-section">
+      <h2>Pourquoi parfois ça se trompe</h2>
+      <ul>
+        <li>
+          La revue technique couvre la Saxo ; pour la 106 (mécaniquement identique), le site adapte
+          les réponses mais peut se tromper sur un détail spécifique à un modèle.
+        </li>
+        <li>
+          Certains moteurs existent en plusieurs variantes (ex : le 1.6i 16v en version TU5J4 L3 ou
+          L4) avec des valeurs différentes - si ta version exacte n'est pas précisée, la réponse peut
+          mélanger ou mal choisir entre les deux.
+        </li>
+        <li>
+          Une réponse "web" n'est pas vérifiée par un professionnel : elle reflète ce que Gemini a
+          trouvé sur internet au moment de la question, avec les mêmes limites que n'importe quelle
+          recherche web.
+        </li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      Un bug ou un souci sur le site ?
+      <a href="https://www.instagram.com/la106noire/" target="_blank" rel="noopener">
+        Envoie un DM sur Instagram
+      </a>
+    </p>
+    <p class="copyright">
+      © 2026 Quentin Delos -
+      <a href="https://quentindelos.fr" target="_blank" rel="noopener">quentindelos.fr</a>
+    </p>
+  </footer>
+
+  <script>
+    // Même logique de thème que app.js, dupliquée ici pour ne pas dépendre du reste
+    // de app.js (qui référence des éléments du formulaire absents sur cette page).
+    const THEME_KEY = "rta-psa-theme";
+    const themeToggle = document.getElementById("theme-toggle");
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      themeToggle.textContent = theme === "dark" ? "☀️" : "🌙";
+    }
+
+    applyTheme(localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light");
+
+    themeToggle.addEventListener("click", () => {
+      const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      localStorage.setItem(THEME_KEY, next);
+      applyTheme(next);
+    });
+  </script>
+</body>
+</html>

@@ -29,6 +29,7 @@ class SearchResponse(BaseModel):
 
 class AskResponse(BaseModel):
     query: str
+    title: str = ""
     answer: str
     # "rta_and_web" : la RTA couvrait le sujet, la réponse combine RTA + web.
     # "web_only" : la RTA ne couvre pas le sujet, réponse basée sur le web uniquement.

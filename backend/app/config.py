@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     embedding_model: str = "text-multilingual-embedding-002"
     top_k_default: int = 8
     # Utilisé en repli quand les `top_k_default` pages les plus proches ne suffisent
-    # pas à répondre — élargit la recherche avant de basculer sur le web.
+    # pas à répondre - élargit la recherche avant de basculer sur le web.
     top_k_wide: int = 20
     admin_token: str = "change-me"
 
