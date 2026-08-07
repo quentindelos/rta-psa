@@ -51,6 +51,9 @@ def _parse_history(raw: str | None) -> list[HistoryTurn]:
     return turns[-_MAX_HISTORY_TURNS:]
 
 
+_MAX_HIGHLIGHT_JOBS = 10
+
+
 def _sources_from(result: RtaAnswer, pages: list[PageEntry], settings: Settings) -> list[Source]:
     cited = set(result.cited_pages)
     # Ne garde que les pages effectivement citées dans la réponse - sinon on
@@ -60,15 +63,18 @@ def _sources_from(result: RtaAnswer, pages: list[PageEntry], settings: Settings)
     # Un appel Gemini (vision) par schéma pour repérer la zone à mettre en évidence -
     # en parallèle, sinon une réponse citant plusieurs schémas deviendrait lente (chaque
     # appel prend une seconde ou deux). Best-effort : voir locate_highlight, jamais
-    # bloquant pour l'affichage des sources elles-mêmes.
+    # bloquant pour l'affichage des sources elles-mêmes. Plafonné : certaines pages
+    # (ex : une planche électrique découpée en dizaines de petits schémas) exploseraient
+    # sinon le temps de réponse - au-delà de la limite, les schémas restent affichés,
+    # simplement sans cadre de surbrillance.
     jobs = [
         (page_idx, schematic_idx, f"gs://{settings.gcs_bucket_pages}/{filename}")
         for page_idx, page in enumerate(cited_pages)
         for schematic_idx, filename in enumerate(page.schematic_image_filenames)
-    ]
+    ][:_MAX_HIGHLIGHT_JOBS]
     highlights: dict[tuple[int, int], Highlight | None] = {}
     if jobs:
-        with ThreadPoolExecutor(max_workers=min(8, len(jobs))) as executor:
+        with ThreadPoolExecutor(max_workers=len(jobs)) as executor:
             futures = {
                 executor.submit(locate_highlight, settings, gcs_uri, result.answer): (page_idx, schematic_idx)
                 for page_idx, schematic_idx, gcs_uri in jobs
