@@ -751,7 +751,10 @@ button:disabled {
 footer {
   width: 92%;
   max-width: var(--content-max-width);
-  margin: 2rem 0 2.5rem;
+  /* Marge basse alignée sur celle de main (voir .composer) : le footer est un frère de
+     main, pas un enfant, la marge basse de main ne lui profite pas - sans ça, la barre
+     de saisie fixe chevauche le texte du footer quand la page est courte. */
+  margin: 2rem 0 7.5rem;
   padding: 0;
   text-align: center;
   font-size: 0.85rem;
