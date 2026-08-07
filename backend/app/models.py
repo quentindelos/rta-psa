@@ -15,6 +15,14 @@ class WebSource(BaseModel):
     url: str
 
 
+class HistoryTurn(BaseModel):
+    """Un tour précédent de la conversation, envoyé par le client pour qu'une question
+    de suivi ("et pour le diesel ?") puisse être comprise sans tout reformuler."""
+
+    query: str
+    answer: str
+
+
 class SearchResult(BaseModel):
     page_num: str
     excerpt: str

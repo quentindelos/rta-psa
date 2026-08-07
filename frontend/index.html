@@ -83,12 +83,22 @@
       <p class="search-steps-label">Étapes de la recherche</p>
       <ol id="search-steps-list" class="search-steps-list"></ol>
     </div>
-    <div id="answer-card" class="answer-card" hidden>
-      <div id="origin-badge" class="origin-badge"></div>
-      <div id="answer-text" class="answer-text"></div>
-      <div id="sources" class="sources"></div>
-      <div id="web-sources" class="web-sources"></div>
-    </div>
+
+    <div id="thread" class="thread" hidden></div>
+
+    <form id="followup-form" class="followup-form" hidden>
+      <input
+        type="text"
+        id="followup-query"
+        placeholder="Poser une question de suivi sur le même sujet…"
+        autocomplete="off"
+      />
+      <button type="submit" id="followup-submit-btn">Envoyer</button>
+    </form>
+
+    <button id="new-conversation-btn" class="new-conversation-btn" type="button" hidden>
+      ↺ Nouvelle recherche
+    </button>
   </main>
 
   <footer>

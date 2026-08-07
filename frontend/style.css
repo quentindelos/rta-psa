@@ -292,9 +292,19 @@ main {
   font-size: 1.05rem;
 }
 
+#followup-query {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 1.05rem;
+}
+
 #fuel:focus,
 #vehicle:focus,
-#query:focus {
+#query:focus,
+#followup-query:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -466,11 +476,64 @@ button:disabled {
   }
 }
 
-.answer-card {
+/* Le fil de conversation empile un ou plusieurs tours (question + réponse) - chaque
+   tour garde ses propres sources juste en dessous de sa réponse, pas juste à la fin
+   du fil, pour rester lisible même après plusieurs questions de suivi. */
+.thread {
   margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.turn-question {
+  margin: 0 0 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.turn-question::before {
+  content: "Toi : ";
+  font-weight: 400;
+}
+
+.turn-answer {
   padding: 1.25rem 1.4rem;
   border-radius: 12px;
   background: var(--card-bg);
+}
+
+.followup-form {
+  margin-top: 1.25rem;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.followup-form input {
+  flex: 1 1 auto;
+}
+
+.new-conversation-btn {
+  margin-top: 1rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.new-conversation-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.history-item-count {
+  margin-top: 0.1rem;
+  font-size: 0.72rem;
+  color: var(--muted);
 }
 
 .origin-badge {
@@ -806,8 +869,12 @@ footer a {
     padding: 0 0.75rem 2rem;
   }
 
-  .answer-card {
+  .turn-answer {
     padding: 1rem;
+  }
+
+  .followup-form {
+    flex-direction: column;
   }
 
   .sources {

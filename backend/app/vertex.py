@@ -11,6 +11,7 @@ from google.genai import types
 
 from .config import Settings
 from .index_store import PageEntry
+from .models import HistoryTurn
 
 _ANSWER_PROMPT = """Tu réponds en français à une question sur une revue technique \
 automobile, à partir UNIQUEMENT des extraits de pages fournis ci-dessous.
@@ -35,6 +36,16 @@ Attention : le 106 Rallye n'a PAS le même moteur que le 106 S16. Le S16 a le 1.
 soupapes TU5J4 (comme la Saxo VTS). Le Rallye a un moteur 8 soupapes différent selon la \
 phase (Phase 1 : 1.3i, Phase 2 : 1.6i) - ne confonds jamais les deux et n'applique pas aux \
 Rallye des informations qui concernent spécifiquement le moteur 16v du S16/de la VTS.
+
+Analyse les extraits en profondeur avant de conclure : lis chaque page fournie en entier \
+(pas seulement son début), y compris les légendes de schémas, tableaux de valeurs et \
+notes en petits caractères - l'information demandée y est souvent, même quand la page ne \
+semble pas correspondre au premier coup d'œil. Une question vague ou générale (ex : \
+"comment changer les plaquettes") mérite une réponse qui rassemble TOUTES les étapes/\
+valeurs/précautions pertinentes trouvées dans les extraits, pas juste la première \
+information trouvée. Si l'information est répartie sur plusieurs pages non consécutives \
+(ex : la procédure sur une page, les valeurs de couple de serrage sur une autre), \
+combine-les dans une seule réponse cohérente plutôt que de n'en garder qu'une.
 {vehicle_line}
 Réponds UNIQUEMENT avec un objet JSON valide (pas de balises markdown), avec exactement \
 ces clés :
@@ -69,7 +80,7 @@ sur plusieurs pages, plusieurs tableaux de caractéristiques), cite-les TOUTES -
 choisis pas arbitrairement une ou deux par souci de concision. À l'inverse, une page qui \
 n'apporte rien de concret à cette question précise ne doit pas être citée juste parce \
 qu'elle fait partie des extraits fournis. Liste vide si found_in_rta est false.
-
+{history_block}
 Question : {query}
 
 Extraits disponibles :
@@ -102,6 +113,10 @@ Ce que dit la RTA sur cette question :
 {rta_context}
 
 Consignes :
+- Sois approfondi : exploite tout ce que les extraits RTA fournis contiennent sur le \
+sujet (étapes, valeurs, légendes de schémas, précautions), pas juste la première phrase \
+qui semble correspondre - et complète avec la recherche web pour les détails que la RTA \
+n'a pas.
 - Rédige UNE SEULE réponse finale, cohérente, qui combine ce que dit la RTA et ce que \
 t'apprend ta recherche web — jamais deux réponses séparées.
 - Indique TOUJOURS clairement l'origine de chaque information : les éléments qui viennent \
@@ -140,7 +155,12 @@ soupapes TU5J4 comme la VTS ; Rallye = moteur 8 soupapes différent selon la pha
 identique (mêmes pièces, "voitures jumelles") : une information RTA parlant de la Saxo \
 reste valable pour une question sur la 106 (et inversement), sauf si un extrait indique \
 explicitement une différence entre les deux modèles.
-{vehicle_line}
+- Si un historique de conversation est fourni ci-dessous, sers-t'en pour comprendre le \
+sujet d'une question de suivi (ex : "et pour le diesel ?", "donne-moi le couple aussi", \
+"il coûte combien ?" faisant référence à une pièce citée juste avant) - mais réponds \
+UNIQUEMENT à la question actuelle, ne répète pas ce qui a déjà été dit dans une réponse \
+précédente sauf si c'est nécessaire pour que la nouvelle réponse ait un sens.
+{vehicle_line}{history_block}
 Question : {query}
 """
 
@@ -194,12 +214,74 @@ def _vehicle_line(vehicle: str | None) -> str:
     return f"\nVersion du véhicule précisée par l'utilisateur : {vehicle}.\n"
 
 
+def _history_block(history: list[HistoryTurn] | None) -> str:
+    if not history:
+        return ""
+    turns = "\n\n".join(f"Question précédente : {t.query}\nRéponse donnée : {t.answer}" for t in history)
+    return (
+        "\nHistorique de cette conversation, du plus ancien au plus récent (sert "
+        "uniquement à comprendre une question de suivi qui fait référence à ce qui "
+        f"précède - ne réponds qu'à la question actuelle) :\n{turns}\n"
+    )
+
+
+_CONTEXTUALIZE_PROMPT = """Voici l'historique d'une conversation sur l'entretien/la \
+réparation d'une Peugeot 106 ou Citroën Saxo, suivi d'une nouvelle question qui peut être \
+une question de suivi (faisant référence à ce qui précède par un pronom, une ellipse, \
+"et pour...", etc.).
+
+Historique :
+{turns}
+
+Nouvelle question : {query}
+
+Reformule cette nouvelle question en une question autonome, complète et explicite, \
+compréhensible SANS l'historique (utile pour une recherche documentaire) - en reprenant \
+le sujet précis dont il est question si la nouvelle question ne le répète pas \
+explicitement. Si la nouvelle question est déjà autonome et n'a pas besoin de \
+l'historique, renvoie-la telle quelle. Ne réponds jamais à la question, reformule-la \
+seulement.
+
+Réponds UNIQUEMENT avec un objet JSON valide (pas de balises markdown) de la forme \
+{{"standalone_query": "..."}}.
+"""
+
+
+def contextualize_query(settings: Settings, query: str, history: list[HistoryTurn] | None) -> str:
+    """Reformule une question de suivi en question autonome pour la recherche documentaire
+    (embedding), à partir de l'historique de la conversation. Sans historique, la question
+    est déjà autonome par définition - on économise l'appel Gemini et on la renvoie telle
+    quelle."""
+    if not history:
+        return query
+    client = _client(settings)
+    turns = "\n\n".join(f"Q: {t.query}\nR: {t.answer}" for t in history)
+    prompt = _CONTEXTUALIZE_PROMPT.format(turns=turns, query=query)
+    try:
+        response = client.models.generate_content(
+            model=settings.gemini_model,
+            contents=prompt,
+            config=types.GenerateContentConfig(response_mime_type="application/json"),
+        )
+        data = json.loads(response.text or "{}")
+    except Exception:  # noqa: BLE001 - une reformulation ratée n'est pas bloquante, on retombe sur la question brute
+        return query
+    standalone = (data.get("standalone_query") or "").strip()
+    return standalone or query
+
+
 def generate_answer(
-    settings: Settings, query: str, pages: list[PageEntry], vehicle: str | None = None
+    settings: Settings,
+    query: str,
+    pages: list[PageEntry],
+    vehicle: str | None = None,
+    history: list[HistoryTurn] | None = None,
 ) -> RtaAnswer:
     client = _client(settings)
     context = "\n\n".join(f"--- Page {p.page_label} ---\n{p.text}" for p in pages)
-    prompt = _ANSWER_PROMPT.format(query=query, context=context, vehicle_line=_vehicle_line(vehicle))
+    prompt = _ANSWER_PROMPT.format(
+        query=query, context=context, vehicle_line=_vehicle_line(vehicle), history_block=_history_block(history)
+    )
     response = client.models.generate_content(
         model=settings.gemini_model,
         contents=prompt,
@@ -269,6 +351,7 @@ def generate_combined_answer(
     pages: list[PageEntry],
     vehicle: str | None = None,
     fuel: str | None = None,
+    history: list[HistoryTurn] | None = None,
 ) -> tuple[str, list[WebSourceInfo]]:
     """Fait toujours une recherche web réelle (grounding Gemini) et la combine avec ce que
     dit la RTA (déjà extrait par generate_answer) en une seule réponse, chaque information
@@ -280,6 +363,7 @@ def generate_combined_answer(
         query=query,
         vehicle_line=_vehicle_line(vehicle),
         rta_context=_rta_context(rta_result, pages, fuel),
+        history_block=_history_block(history),
     )
     response = client.models.generate_content(
         model=settings.gemini_model,

@@ -13,10 +13,15 @@ class Settings(BaseSettings):
     gcs_bucket_pages: str = "rta-psa-pages"
     gemini_model: str = "gemini-2.5-flash"
     embedding_model: str = "text-multilingual-embedding-002"
-    top_k_default: int = 8
+    # Volontairement large : la RTA scindée essence/diesel réduit déjà le champ de
+    # recherche par deux, et Gemini n'est plus limité dans le nombre de pages qu'il
+    # peut citer (voir _ANSWER_PROMPT) - plus de contexte en entrée permet de trouver
+    # des réponses à des questions vagues ou dont l'info est éparpillée sur plusieurs
+    # pages, sans risque de "diluer" la réponse.
+    top_k_default: int = 12
     # Utilisé en repli quand les `top_k_default` pages les plus proches ne suffisent
     # pas à répondre - élargit la recherche avant de basculer sur le web.
-    top_k_wide: int = 20
+    top_k_wide: int = 32
     admin_token: str = "change-me"
 
 

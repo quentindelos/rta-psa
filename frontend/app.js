@@ -4,11 +4,11 @@ const fuelSelect = document.getElementById("fuel");
 const vehicleSelect = document.getElementById("vehicle");
 const submitBtn = document.getElementById("submit-btn");
 const statusEl = document.getElementById("status");
-const answerCard = document.getElementById("answer-card");
-const originBadge = document.getElementById("origin-badge");
-const answerText = document.getElementById("answer-text");
-const sourcesEl = document.getElementById("sources");
-const webSourcesEl = document.getElementById("web-sources");
+const threadEl = document.getElementById("thread");
+const followupForm = document.getElementById("followup-form");
+const followupInput = document.getElementById("followup-query");
+const followupSubmitBtn = document.getElementById("followup-submit-btn");
+const newConversationBtn = document.getElementById("new-conversation-btn");
 const lightbox = document.getElementById("lightbox");
 const lightboxImg = document.getElementById("lightbox-img");
 const themeToggle = document.getElementById("theme-toggle");
@@ -25,6 +25,9 @@ const discordBanner = document.querySelector(".discord-banner");
 const THEME_KEY = "rta-psa-theme";
 const HISTORY_KEY = "rta-psa-history";
 const HISTORY_MAX = 12;
+// Nombre de tours précédents envoyés au serveur pour qu'une question de suivi garde le
+// fil (voir aussi _MAX_HISTORY_TURNS côté backend, qui retronque de toute façon).
+const HISTORY_TURNS_SENT = 4;
 
 // Variantes par carburant — le formulaire demande d'abord essence/diesel (voir index.html)
 // avant d'afficher cette liste, pour ne jamais mélanger les deux moitiés de la RTA.
@@ -85,47 +88,82 @@ function populateVehicleOptions(fuel) {
 
 fuelSelect.addEventListener("change", () => populateVehicleOptions(fuelSelect.value));
 
+// Restaure la sélection carburant/véhicule d'une question historique. Le catalogue
+// VEHICLE_OPTIONS peut changer entre l'enregistrement d'une question et sa relecture
+// (ex : renommage d'un libellé) - dans ce cas l'option d'origine n'existe plus dans la
+// liste fraîchement peuplée et une simple affectation de `.value` échouerait
+// silencieusement (rien de sélectionné). On réinjecte alors l'option manquante avec le
+// libellé mémorisé, pour que la question se rouvre toujours avec le véhicule choisi à
+// l'origine plutôt que de retomber sur "toutes les versions".
+function restoreFuelAndVehicle(fuel, vehicle, vehicleLabel) {
+  fuelSelect.value = fuel || "";
+  populateVehicleOptions(fuel);
+  if (vehicle && !Array.from(vehicleSelect.options).some((o) => o.value === vehicle)) {
+    vehicleSelect.appendChild(new Option(vehicleLabel || vehicle, vehicle));
+  }
+  vehicleSelect.value = vehicle || "";
+}
+
 function inferFuel(vehicle) {
   // Historique enregistré avant l'ajout du sélecteur carburant : on déduit du texte.
   if (!vehicle) return "";
   return /diesel/i.test(vehicle) ? "diesel" : "essence";
 }
 
+function newId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+// L'historique enregistre des CONVERSATIONS entières (une ou plusieurs questions de
+// suite sur le même sujet), pas juste une question isolée - reposer une question
+// historique doit rouvrir tout le fil, avec chaque réponse et ses sources telles
+// qu'elles étaient. `loadHistory` migre les anciens formats rencontrés au fil du temps :
+// - une simple chaîne (tout premier format, avant même le véhicule)
+// - un objet à plat {query, vehicle, vehicleLabel, fuel, response} (une question par
+//   entrée, avant l'ajout des conversations à plusieurs tours)
 function loadHistory() {
   try {
     const raw = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
-    // Anciennes entrées enregistrées avant l'ajout du contexte véhicule/carburant/de la
-    // réponse : de simples chaînes, ou des objets sans champ fuel/response.
-    return raw.map((entry) => {
+    return raw.map((entry, i) => {
       if (typeof entry === "string") {
-        return { query: entry, vehicle: "", vehicleLabel: "", fuel: "", response: null };
+        return { id: `legacy-${i}`, query: entry, vehicle: "", vehicleLabel: "", fuel: "", turns: [] };
       }
-      return { fuel: inferFuel(entry.vehicle), response: null, ...entry };
+      if (Array.isArray(entry.turns)) {
+        return { id: entry.id || `legacy-${i}`, vehicle: "", vehicleLabel: "", fuel: "", ...entry };
+      }
+      const fuel = entry.fuel || inferFuel(entry.vehicle);
+      const turns = entry.response ? [{ query: entry.query, response: entry.response }] : [];
+      return {
+        id: entry.id || `legacy-${i}`,
+        query: entry.query,
+        vehicle: entry.vehicle || "",
+        vehicleLabel: entry.vehicleLabel || "",
+        fuel,
+        turns,
+      };
     });
   } catch {
     return [];
   }
 }
 
-function sameEntry(a, query, vehicle) {
-  return a.query === query && a.vehicle === vehicle;
-}
-
-// On garde la réponse complète avec chaque entrée d'historique : reposer une question
+// On garde la réponse complète avec chaque tour de conversation : reposer une question
 // depuis l'historique doit réafficher EXACTEMENT ce qui avait été répondu, pas relancer
 // une recherche qui - une fois le cache serveur (TTL 6h) expiré - peut regénérer une
 // réponse différente (LLM non déterministe).
-function saveQueryToHistory(query, vehicle, vehicleLabel, fuel, response) {
-  const history = loadHistory().filter((entry) => !sameEntry(entry, query, vehicle));
-  history.unshift({ query, vehicle, vehicleLabel, fuel, response });
+function saveConversationToHistory(conversation) {
+  const history = loadHistory().filter((entry) => entry.id !== conversation.id);
+  history.unshift({ ...conversation });
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_MAX)));
   renderHistory();
 }
 
-function removeQueryFromHistory(query, vehicle) {
-  const history = loadHistory().filter((entry) => !sameEntry(entry, query, vehicle));
+function removeConversationFromHistory(id) {
+  const history = loadHistory().filter((entry) => entry.id !== id);
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
   renderHistory();
+  if (activeConversation && activeConversation.id === id) startNewConversation();
 }
 
 function renderHistory() {
@@ -145,12 +183,15 @@ function renderHistory() {
     textBtn.type = "button";
     textBtn.className = "history-item-text";
 
+    const firstTurn = entry.turns[0];
+    const rawQuery = firstTurn ? firstTurn.query : entry.query || "";
+
     const queryLabel = document.createElement("span");
     queryLabel.className = "history-item-query";
     // Le titre court (reformulé par Gemini) est plus lisible dans la liste que la
     // question brute, parfois longue - la question complète reste dans le tooltip.
-    queryLabel.textContent = (entry.response && entry.response.title) || entry.query;
-    queryLabel.title = entry.query;
+    queryLabel.textContent = (firstTurn && firstTurn.response && firstTurn.response.title) || rawQuery;
+    queryLabel.title = rawQuery;
     textBtn.appendChild(queryLabel);
 
     if (entry.vehicleLabel) {
@@ -160,37 +201,34 @@ function renderHistory() {
       textBtn.appendChild(vehicleTag);
     }
 
+    if (entry.turns.length > 1) {
+      const countTag = document.createElement("span");
+      countTag.className = "history-item-count";
+      countTag.textContent = `${entry.turns.length} questions`;
+      textBtn.appendChild(countTag);
+    }
+
     textBtn.addEventListener("click", () => {
       closeMobileMenu();
-      queryInput.value = entry.query;
-      fuelSelect.value = entry.fuel || "";
-      populateVehicleOptions(entry.fuel);
-      vehicleSelect.value = entry.vehicle;
-      if (entry.response) {
-        // Réaffiche instantanément la réponse d'origine, sans repasser par le réseau
-        // ni par le cache serveur (qui peut avoir expiré et regénérer autre chose).
-        if (currentEventSource) {
-          currentEventSource.close();
-          currentEventSource = null;
-        }
-        setLoading(false);
-        statusEl.hidden = true;
-        resetSearchSteps();
-        renderAnswer(entry.response);
-      } else {
-        // Entrée d'historique enregistrée avant l'ajout du cache local : on n'a que
-        // la question, il faut relancer la recherche.
-        form.requestSubmit();
+      if (entry.turns.length === 0) {
+        // Entrée d'historique enregistrée avant l'ajout du cache local (ou conversation
+        // jamais aboutie) : on n'a que la question, on la repropose sans relancer de
+        // recherche automatiquement.
+        showInitialForm();
+        restoreFuelAndVehicle(entry.fuel, entry.vehicle, entry.vehicleLabel);
+        queryInput.value = rawQuery;
+        return;
       }
+      openConversation(entry);
     });
 
     const removeBtn = document.createElement("button");
     removeBtn.type = "button";
     removeBtn.className = "history-item-remove";
-    removeBtn.setAttribute("aria-label", "Supprimer cette question");
+    removeBtn.setAttribute("aria-label", "Supprimer cette conversation");
     removeBtn.textContent = "×";
     removeBtn.addEventListener("click", () => {
-      removeQueryFromHistory(entry.query, entry.vehicle);
+      removeConversationFromHistory(entry.id);
     });
 
     item.append(textBtn, removeBtn);
@@ -261,58 +299,168 @@ const mobileMenuQuery = window.matchMedia("(max-width: 700px)");
 layoutForMobileMenu(mobileMenuQuery.matches);
 mobileMenuQuery.addEventListener("change", (event) => layoutForMobileMenu(event.matches));
 
+// --- Conversation active -----------------------------------------------------------
+// Une conversation garde le fil (fuel/vehicle figés au premier tour + historique des
+// questions/réponses) pour que les questions de suivi ("et pour le diesel ?") soient
+// comprises sans tout reformuler. `activeConversation` est null tant qu'aucune question
+// n'a encore reçu de réponse.
+let activeConversation = null;
 let currentEventSource = null;
+
+function showInitialForm() {
+  if (currentEventSource) {
+    currentEventSource.close();
+    currentEventSource = null;
+  }
+  activeConversation = null;
+  threadEl.innerHTML = "";
+  threadEl.hidden = true;
+  followupForm.hidden = true;
+  newConversationBtn.hidden = true;
+  form.hidden = false;
+  statusEl.hidden = true;
+  resetSearchSteps();
+}
+
+function startNewConversation() {
+  showInitialForm();
+  queryInput.value = "";
+  fuelSelect.value = "";
+  populateVehicleOptions("");
+  queryInput.focus();
+}
+
+function openConversation(entry) {
+  if (currentEventSource) {
+    currentEventSource.close();
+    currentEventSource = null;
+  }
+  activeConversation = {
+    id: entry.id,
+    vehicle: entry.vehicle,
+    vehicleLabel: entry.vehicleLabel,
+    fuel: entry.fuel,
+    turns: entry.turns,
+  };
+  restoreFuelAndVehicle(entry.fuel, entry.vehicle, entry.vehicleLabel);
+  form.hidden = true;
+  statusEl.hidden = true;
+  resetSearchSteps();
+  renderThread();
+  followupForm.hidden = false;
+  followupInput.value = "";
+  newConversationBtn.hidden = false;
+}
+
+newConversationBtn.addEventListener("click", startNewConversation);
+
+// Compacte l'historique envoyé au serveur (paramètre GET - EventSource ne permet pas de
+// requête POST, donc pas de corps de requête) : la question et un extrait de la réponse
+// suffisent à comprendre une question de suivi, pas besoin du texte complet.
+function historyPayload(turns) {
+  return JSON.stringify(
+    turns.slice(-HISTORY_TURNS_SENT).map((t) => ({ q: t.query, a: (t.response.answer || "").slice(0, 600) }))
+  );
+}
+
+function runSearch({ query, fuel, vehicle, historyTurns, onStep, onResult, onError }) {
+  const params = new URLSearchParams({ q: query });
+  if (fuel) params.set("fuel", fuel);
+  if (vehicle) params.set("vehicle", vehicle);
+  if (historyTurns && historyTurns.length) params.set("history", historyPayload(historyTurns));
+
+  const es = new EventSource(`/api/ask/stream?${params.toString()}`);
+  currentEventSource = es;
+
+  es.addEventListener("step", (event) => onStep(JSON.parse(event.data).message));
+
+  es.addEventListener("result", (event) => {
+    es.close();
+    currentEventSource = null;
+    onResult(JSON.parse(event.data));
+  });
+
+  es.onerror = () => {
+    es.close();
+    currentEventSource = null;
+    onError();
+  };
+}
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   const query = queryInput.value.trim();
   if (!query) return;
 
-  if (currentEventSource) {
-    currentEventSource.close();
-    currentEventSource = null;
-  }
-
   closeMobileMenu();
-  setLoading(true);
-  answerCard.hidden = true;
+  setLoading(submitBtn, true, "Chercher");
   resetSearchSteps();
   showStatus("Recherche en cours…", false);
 
   const fuel = fuelSelect.value;
   const vehicle = vehicleSelect.value;
   const vehicleLabel = vehicle ? vehicleSelect.options[vehicleSelect.selectedIndex].text : "";
-  const params = new URLSearchParams({ q: query });
-  if (fuel) params.set("fuel", fuel);
-  if (vehicle) params.set("vehicle", vehicle);
 
-  const es = new EventSource(`/api/ask/stream?${params.toString()}`);
-  currentEventSource = es;
+  activeConversation = { id: newId(), vehicle, vehicleLabel, fuel, turns: [] };
 
-  es.addEventListener("step", (event) => {
-    addSearchStep(JSON.parse(event.data).message);
+  runSearch({
+    query,
+    fuel,
+    vehicle,
+    historyTurns: [],
+    onStep: addSearchStep,
+    onResult: (data) => {
+      activeConversation.turns.push({ query, response: data });
+      setLoading(submitBtn, false, "Chercher");
+      statusEl.hidden = true;
+      form.hidden = true;
+      followupForm.hidden = false;
+      followupInput.value = "";
+      newConversationBtn.hidden = false;
+      renderThread();
+      saveConversationToHistory(activeConversation);
+    },
+    onError: () => {
+      setLoading(submitBtn, false, "Chercher");
+      showStatus("Erreur : la recherche a échoué.", true);
+    },
   });
-
-  es.addEventListener("result", (event) => {
-    es.close();
-    currentEventSource = null;
-    const data = JSON.parse(event.data);
-    renderAnswer(data);
-    saveQueryToHistory(query, vehicle, vehicleLabel, fuel, data);
-    setLoading(false);
-  });
-
-  es.onerror = () => {
-    es.close();
-    currentEventSource = null;
-    showStatus("Erreur : la recherche a échoué.", true);
-    setLoading(false);
-  };
 });
 
-function setLoading(isLoading) {
-  submitBtn.disabled = isLoading;
-  submitBtn.textContent = isLoading ? "Recherche…" : "Chercher";
+followupForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!activeConversation) return;
+  const query = followupInput.value.trim();
+  if (!query) return;
+
+  setLoading(followupSubmitBtn, true, "Envoyer");
+  resetSearchSteps();
+  showStatus("Recherche en cours…", false);
+
+  runSearch({
+    query,
+    fuel: activeConversation.fuel,
+    vehicle: activeConversation.vehicle,
+    historyTurns: activeConversation.turns,
+    onStep: addSearchStep,
+    onResult: (data) => {
+      activeConversation.turns.push({ query, response: data });
+      setLoading(followupSubmitBtn, false, "Envoyer");
+      statusEl.hidden = true;
+      followupInput.value = "";
+      renderThread();
+      saveConversationToHistory(activeConversation);
+    },
+    onError: () => {
+      setLoading(followupSubmitBtn, false, "Envoyer");
+      showStatus("Erreur : la recherche a échoué.", true);
+    },
+  });
+});
+
+function setLoading(button, isLoading, idleLabel) {
+  button.disabled = isLoading;
+  button.textContent = isLoading ? "Recherche…" : idleLabel;
 }
 
 function showStatus(message, isError) {
@@ -334,30 +482,70 @@ function addSearchStep(message) {
   searchStepsList.appendChild(li);
 }
 
-function renderAnswer(data) {
-  statusEl.hidden = true;
-  answerCard.hidden = false;
-  answerText.innerHTML = renderMarkdown(data.answer);
+// --- Rendu du fil de conversation ---------------------------------------------------
 
-  if (data.answer_origin === "web_only") {
-    originBadge.className = "origin-badge origin-badge--web";
-    originBadge.textContent = "🌐 Non trouvé dans la RTA - réponse basée sur le web";
-    sourcesEl.innerHTML = "";
-  } else {
-    originBadge.className = "origin-badge origin-badge--rta";
-    originBadge.textContent = "📖 RTA + 🌐 Web";
-    renderSources(data.sources);
-  }
-  renderWebSources(data.web_sources);
+function renderThread() {
+  threadEl.innerHTML = "";
+  threadEl.hidden = activeConversation.turns.length === 0;
+  activeConversation.turns.forEach((turn) => {
+    threadEl.appendChild(renderTurn(turn));
+  });
+  const lastTurn = threadEl.lastElementChild;
+  if (lastTurn) lastTurn.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function renderSources(sources) {
+function renderTurn(turn) {
+  const data = turn.response;
+
+  const article = document.createElement("article");
+  article.className = "turn";
+
+  const questionEl = document.createElement("p");
+  questionEl.className = "turn-question";
+  questionEl.textContent = turn.query;
+  article.appendChild(questionEl);
+
+  const answerWrap = document.createElement("div");
+  answerWrap.className = "turn-answer";
+
+  const badge = document.createElement("div");
+  if (data.answer_origin === "web_only") {
+    badge.className = "origin-badge origin-badge--web";
+    badge.textContent = "🌐 Non trouvé dans la RTA - réponse basée sur le web";
+  } else {
+    badge.className = "origin-badge origin-badge--rta";
+    badge.textContent = "📖 RTA + 🌐 Web";
+  }
+  answerWrap.appendChild(badge);
+
+  const textEl = document.createElement("div");
+  textEl.className = "answer-text";
+  textEl.innerHTML = renderMarkdown(data.answer);
+  answerWrap.appendChild(textEl);
+
+  // Sources RTA (pages/schémas) et sources web toujours affichées en bas de CETTE
+  // réponse précise, pas juste à la fin du fil - chaque tour garde ses propres sources.
+  const sourcesEl = document.createElement("div");
+  sourcesEl.className = "sources";
+  if (data.answer_origin !== "web_only") fillSources(sourcesEl, data.sources);
+  answerWrap.appendChild(sourcesEl);
+
+  const webSourcesEl = document.createElement("div");
+  webSourcesEl.className = "web-sources";
+  fillWebSources(webSourcesEl, data.web_sources);
+  answerWrap.appendChild(webSourcesEl);
+
+  article.appendChild(answerWrap);
+  return article;
+}
+
+function fillSources(container, sources) {
   if (!sources || sources.length === 0) {
-    sourcesEl.innerHTML = "";
+    container.innerHTML = "";
     return;
   }
 
-  sourcesEl.innerHTML = sources
+  container.innerHTML = sources
     .flatMap((source) => {
       if (source.schematic_image_urls && source.schematic_image_urls.length > 0) {
         return source.schematic_image_urls.map((url, i) => {
@@ -397,7 +585,7 @@ function renderSources(sources) {
     })
     .join("");
 
-  sourcesEl.querySelectorAll("[data-full]").forEach((el) => {
+  container.querySelectorAll("[data-full]").forEach((el) => {
     el.addEventListener("click", (event) => {
       event.preventDefault();
       openLightbox(el.dataset.full);
@@ -405,13 +593,13 @@ function renderSources(sources) {
   });
 }
 
-function renderWebSources(webSources) {
+function fillWebSources(container, webSources) {
   if (!webSources || webSources.length === 0) {
-    webSourcesEl.innerHTML = "";
+    container.innerHTML = "";
     return;
   }
 
-  webSourcesEl.innerHTML =
+  container.innerHTML =
     "<p class='web-sources-label'>Sources :</p>" +
     "<ul>" +
     webSources
