@@ -130,13 +130,25 @@ def _answer_from(
     pages: list[PageEntry],
     history: list[HistoryTurn],
 ) -> AskResponse:
-    combined_answer, web_sources = generate_combined_answer(settings, q, rta_result, pages, vehicle, fuel, history)
+    # generate_combined_answer (recherche web incluse) et _sources_from (un appel vision
+    # par schéma cité) sont indépendants - ils n'ont besoin que de rta_result, jamais l'un
+    # de l'autre - donc lancés en parallèle plutôt qu'à la suite : sinon le temps de
+    # réponse total est la SOMME des deux (déjà observé à 90s+ en prod avec beaucoup de
+    # schémas cités) au lieu du plus lent des deux.
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        combined_future = executor.submit(
+            generate_combined_answer, settings, q, rta_result, pages, vehicle, fuel, history
+        )
+        sources_future = executor.submit(_sources_from, rta_result, pages, settings) if rta_result.found else None
+        combined_answer, web_sources = combined_future.result()
+        sources = sources_future.result() if sources_future else []
+
     return AskResponse(
         query=q,
         title=title,
         answer=combined_answer,
         answer_origin="rta_and_web" if rta_result.found else "web_only",
-        sources=_sources_from(rta_result, pages, settings) if rta_result.found else [],
+        sources=sources,
         web_sources=[WebSource(title=s.title, url=s.url) for s in web_sources],
     )
 
