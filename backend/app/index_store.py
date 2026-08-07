@@ -30,6 +30,10 @@ class PageEntry:
     # Numéro/libellé tel qu'imprimé sur la page (ex: "I", "XXII", "86-087") — peut
     # diverger de page_num, voir ingestion/apply_page_labels.py.
     page_label: str = ""
+    # "essence" | "diesel" | "commun" — voir ingestion/sections.py. "commun" (couverture,
+    # sommaire, guide du contrôle technique) doit toujours rester consultable, quel que
+    # soit le carburant demandé.
+    variant: str = "commun"
 
     def __post_init__(self) -> None:
         if not self.page_label:
@@ -89,12 +93,24 @@ class IndexStore:
         self._embeddings = embeddings
         logger.info("Index chargé : %d page(s).", len(pages))
 
-    def search(self, query_vector: np.ndarray, k: int) -> list[SearchHit]:
+    def search(self, query_vector: np.ndarray, k: int, variant: str | None = None) -> list[SearchHit]:
         if not self._pages:
             return []
         scores = self._embeddings @ query_vector
+        if variant is not None:
+            # Une fois le carburant connu, on ne cherche que dans sa moitié de la RTA (+ les
+            # pages communes aux deux, ex: couverture, guide du contrôle technique) — évite de
+            # remonter une page essence pour une question posée sur un véhicule Diesel.
+            mask = np.array(
+                [page.variant == variant or page.variant == "commun" for page in self._pages]
+            )
+            scores = np.where(mask, scores, -np.inf)
         top_indices = np.argsort(-scores)[:k]
-        return [SearchHit(page=self._pages[i], score=float(scores[i])) for i in top_indices]
+        return [
+            SearchHit(page=self._pages[i], score=float(scores[i]))
+            for i in top_indices
+            if np.isfinite(scores[i])
+        ]
 
 
 index_store = IndexStore()

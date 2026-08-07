@@ -1,5 +1,6 @@
 const form = document.getElementById("ask-form");
 const queryInput = document.getElementById("query");
+const fuelSelect = document.getElementById("fuel");
 const vehicleSelect = document.getElementById("vehicle");
 const submitBtn = document.getElementById("submit-btn");
 const statusEl = document.getElementById("status");
@@ -20,14 +21,76 @@ const THEME_KEY = "rta-psa-theme";
 const HISTORY_KEY = "rta-psa-history";
 const HISTORY_MAX = 12;
 
+// Variantes par carburant — le formulaire demande d'abord essence/diesel (voir index.html)
+// avant d'afficher cette liste, pour ne jamais mélanger les deux moitiés de la RTA.
+const VEHICLE_OPTIONS = {
+  essence: {
+    "Citroën Saxo": [
+      ["Citroën Saxo 1.0i", "Saxo 1.0i"],
+      ["Citroën Saxo 1.1i", "Saxo 1.1i"],
+      ["Citroën Saxo 1.4i", "Saxo 1.4i"],
+      ["Citroën Saxo 1.6i", "Saxo 1.6i"],
+      ["Citroën Saxo 1.6i 16v (VTS)", "Saxo 1.6i 16v (VTS) — version inconnue"],
+      ["Citroën Saxo 1.6i 16v (VTS) — moteur TU5J4 L3", "Saxo VTS — moteur TU5J4 L3"],
+      ["Citroën Saxo 1.6i 16v (VTS) — moteur TU5J4 L4", "Saxo VTS — moteur TU5J4 L4"],
+    ],
+    "Peugeot 106": [
+      ["Peugeot 106 1.0i", "106 1.0i"],
+      ["Peugeot 106 1.1i", "106 1.1i"],
+      ["Peugeot 106 1.4i", "106 1.4i"],
+      ["Peugeot 106 1.6i", "106 1.6i"],
+      ["Peugeot 106 1.6i 16v (S16)", "106 1.6i 16v (S16) — version inconnue"],
+      ["Peugeot 106 1.6i 16v (S16) — moteur TU5J4 L3", "106 S16 — moteur TU5J4 L3"],
+      ["Peugeot 106 1.6i 16v (S16) — moteur TU5J4 L4", "106 S16 — moteur TU5J4 L4"],
+      ["Peugeot 106 Rallye 1.3i 8v (Phase 1)", "106 Rallye Phase 1 — 1.3i 8v"],
+      ["Peugeot 106 Rallye 1.6i 8v (Phase 2)", "106 Rallye Phase 2 — 1.6i 8v"],
+    ],
+  },
+  diesel: {
+    "Citroën Saxo": [["Citroën Saxo Diesel", "Saxo Diesel"]],
+    "Peugeot 106": [["Peugeot 106 Diesel", "106 Diesel"]],
+  },
+};
+
+function populateVehicleOptions(fuel) {
+  vehicleSelect.innerHTML = "";
+  if (!fuel || !VEHICLE_OPTIONS[fuel]) {
+    vehicleSelect.disabled = true;
+    vehicleSelect.appendChild(new Option("Choisis d'abord le carburant", ""));
+    return;
+  }
+
+  vehicleSelect.disabled = false;
+  vehicleSelect.appendChild(
+    new Option(`Version non précisée (toutes les ${fuel})`, "")
+  );
+  for (const [group, options] of Object.entries(VEHICLE_OPTIONS[fuel])) {
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = group;
+    for (const [value, label] of options) {
+      optgroup.appendChild(new Option(label, value));
+    }
+    vehicleSelect.appendChild(optgroup);
+  }
+}
+
+fuelSelect.addEventListener("change", () => populateVehicleOptions(fuelSelect.value));
+
+function inferFuel(vehicle) {
+  // Historique enregistré avant l'ajout du sélecteur carburant : on déduit du texte.
+  if (!vehicle) return "";
+  return /diesel/i.test(vehicle) ? "diesel" : "essence";
+}
+
 function loadHistory() {
   try {
     const raw = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
-    // Anciennes entrées enregistrées avant l'ajout du contexte véhicule : de simples
-    // chaînes plutôt que des objets {query, vehicle, vehicleLabel}.
-    return raw.map((entry) =>
-      typeof entry === "string" ? { query: entry, vehicle: "", vehicleLabel: "" } : entry
-    );
+    // Anciennes entrées enregistrées avant l'ajout du contexte véhicule/carburant : de
+    // simples chaînes, ou des objets sans champ fuel.
+    return raw.map((entry) => {
+      if (typeof entry === "string") return { query: entry, vehicle: "", vehicleLabel: "", fuel: "" };
+      return { fuel: inferFuel(entry.vehicle), ...entry };
+    });
   } catch {
     return [];
   }
@@ -37,9 +100,9 @@ function sameEntry(a, query, vehicle) {
   return a.query === query && a.vehicle === vehicle;
 }
 
-function saveQueryToHistory(query, vehicle, vehicleLabel) {
+function saveQueryToHistory(query, vehicle, vehicleLabel, fuel) {
   const history = loadHistory().filter((entry) => !sameEntry(entry, query, vehicle));
-  history.unshift({ query, vehicle, vehicleLabel });
+  history.unshift({ query, vehicle, vehicleLabel, fuel });
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_MAX)));
   renderHistory();
 }
@@ -81,6 +144,8 @@ function renderHistory() {
 
     textBtn.addEventListener("click", () => {
       queryInput.value = entry.query;
+      fuelSelect.value = entry.fuel || "";
+      populateVehicleOptions(entry.fuel);
       vehicleSelect.value = entry.vehicle;
       form.requestSubmit();
     });
@@ -131,9 +196,11 @@ form.addEventListener("submit", (event) => {
   resetSearchSteps();
   showStatus("Recherche en cours…", false);
 
+  const fuel = fuelSelect.value;
   const vehicle = vehicleSelect.value;
   const vehicleLabel = vehicle ? vehicleSelect.options[vehicleSelect.selectedIndex].text : "";
   const params = new URLSearchParams({ q: query });
+  if (fuel) params.set("fuel", fuel);
   if (vehicle) params.set("vehicle", vehicle);
 
   const es = new EventSource(`/api/ask/stream?${params.toString()}`);
@@ -147,7 +214,7 @@ form.addEventListener("submit", (event) => {
     es.close();
     currentEventSource = null;
     renderAnswer(JSON.parse(event.data));
-    saveQueryToHistory(query, vehicle, vehicleLabel);
+    saveQueryToHistory(query, vehicle, vehicleLabel, fuel);
     setLoading(false);
   });
 
@@ -188,17 +255,16 @@ function renderAnswer(data) {
   answerCard.hidden = false;
   answerText.innerHTML = renderMarkdown(data.answer);
 
-  if (data.answer_origin === "web") {
+  if (data.answer_origin === "web_only") {
     originBadge.className = "origin-badge origin-badge--web";
-    originBadge.textContent = "⚠ Non trouvé dans la RTA — réponse basée sur le web";
+    originBadge.textContent = "🌐 Non trouvé dans la RTA — réponse basée sur le web";
     sourcesEl.innerHTML = "";
-    renderWebSources(data.web_sources);
   } else {
     originBadge.className = "origin-badge origin-badge--rta";
-    originBadge.textContent = "✓ Réponse basée sur la revue technique";
-    webSourcesEl.innerHTML = "";
+    originBadge.textContent = "📖 RTA + 🌐 Web";
     renderSources(data.sources);
   }
+  renderWebSources(data.web_sources);
 }
 
 function renderSources(sources) {

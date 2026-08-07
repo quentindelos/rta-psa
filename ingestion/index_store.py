@@ -24,6 +24,10 @@ class PageEntry:
     # diverger de page_num (position dans le lot), voir apply_page_labels.py. Par défaut
     # égal à page_num pour les pages sans label connu (ex: couverture, sommaire).
     page_label: str = ""
+    # "essence" | "diesel" | "commun" — la RTA contient deux revues distinctes (essence et
+    # Diesel) avec chacune leur propre numérotation, plus des pages communes aux deux
+    # (couverture, sommaire, guide du contrôle technique). Voir sections.py.
+    variant: str = "commun"
 
     def __post_init__(self) -> None:
         if not self.page_label:

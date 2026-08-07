@@ -30,6 +30,8 @@ class SearchResponse(BaseModel):
 class AskResponse(BaseModel):
     query: str
     answer: str
-    answer_origin: Literal["rta", "web"]
+    # "rta_and_web" : la RTA couvrait le sujet, la réponse combine RTA + web.
+    # "web_only" : la RTA ne couvre pas le sujet, réponse basée sur le web uniquement.
+    answer_origin: Literal["rta_and_web", "web_only"]
     sources: list[Source] = []
     web_sources: list[WebSource] = []

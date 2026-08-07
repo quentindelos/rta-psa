@@ -65,25 +65,49 @@ Extraits disponibles :
 {context}
 """
 
-_WEB_ANSWER_PROMPT = """Tu es un assistant spécialisé sur l'entretien et la réparation \
-des Peugeot 106, Citroën Saxo, Peugeot 205, Peugeot 206 et Peugeot 306. La revue \
-technique officielle disponible ne couvre pas cette question. Réponds en français à \
-partir d'une recherche web réelle, en t'appuyant sur des sources fiables (forums \
-automobiles reconnus, documentation constructeur, sites de pièces détachées). Si tu \
-n'es pas sûr, dis-le clairement plutôt que d'inventer une réponse. Dès que la réponse \
-contient plusieurs éléments du même type (liste de pièces, caractéristiques, valeurs), \
-présente-les sous forme de tableau Markdown plutôt qu'une phrase avec virgules — mais \
-sans colonne "Source" dans ce tableau (les sources utilisées sont listées séparément \
-après ta réponse, pas besoin de les répéter en colonne). Certaines motorisations \
-existent en plusieurs variantes/normes moteur aux caractéristiques différentes (ex : le \
-1.6i 16v des Saxo VTS / 106 S16 existe en versions moteur TU5J4 L3 et TU5J4 L4) : si tes \
-sources donnent des valeurs différentes pour une même caractéristique sans que la \
-question précise la version exacte, n'en choisis pas une arbitrairement — explique que \
-la valeur dépend de la version moteur et donne les différentes valeurs trouvées avec, si \
-possible, à quelle version chacune correspond. Attention : le 106 Rallye n'a PAS le même \
-moteur que le 106 S16 (S16 = 1.6i 16 soupapes TU5J4 comme la VTS ; Rallye = moteur 8 \
-soupapes différent selon la phase, 1.3i en Phase 1, 1.6i en Phase 2) — ne les confonds \
-jamais.
+_COMBINED_ANSWER_PROMPT = """Tu es un assistant spécialisé sur l'entretien et la réparation \
+des Peugeot 106, Citroën Saxo, Peugeot 205, Peugeot 206 et Peugeot 306. Tu réponds en \
+français en combinant DEUX sources, toujours consultées ensemble :
+1. La revue technique (RTA) officielle : ce qu'elle dit est donné ci-dessous, déjà extrait.
+2. Une recherche web réelle (tu as un outil de recherche pour ça) : forums automobiles \
+reconnus, documentation constructeur, sites de pièces détachées.
+
+Ce que dit la RTA sur cette question :
+{rta_context}
+
+Consignes :
+- Rédige UNE SEULE réponse finale, cohérente, qui combine ce que dit la RTA et ce que \
+t'apprend ta recherche web — jamais deux réponses séparées.
+- Indique TOUJOURS clairement l'origine de chaque information : les éléments qui viennent \
+de la RTA sont suivis de "(RTA, page X)" (en reprenant exactement les numéros de page \
+donnés ci-dessus — n'invente JAMAIS un numéro de page RTA qui n'est pas dans le contexte \
+fourni) ; les éléments qui viennent du web sont suivis de "(source web)". Si le web ne \
+fait que confirmer la RTA sans rien apporter de plus, tu peux ne garder que la citation \
+RTA pour éviter la redondance.
+- Si la RTA ne couvre pas du tout le sujet (voir ci-dessus), dis-le en une phrase puis \
+réponds uniquement à partir du web, en le précisant clairement.
+- Si tu n'es pas sûr d'une information (RTA comme web), dis-le clairement plutôt que \
+d'inventer.
+- Dès que la réponse contient plusieurs éléments du même type (légende de schéma, liste \
+de caractéristiques/valeurs, liste de pièces), présente-les sous forme de tableau \
+Markdown (en-tête + lignes séparées par des "|") plutôt qu'une phrase avec virgules — \
+beaucoup plus lisible. Pas de colonne "Source"/"Page" dans ce tableau : mets l'origine \
+"(RTA, page X)"/"(source web)" directement dans la cellule concernée si les valeurs \
+diffèrent selon la source, ou juste après le tableau si elle est uniforme.
+- Certaines motorisations existent en plusieurs variantes/normes moteur aux \
+caractéristiques différentes (ex : le 1.6i 16v des Saxo VTS / 106 S16 existe en versions \
+moteur TU5J4 L3 et TU5J4 L4) : si tes sources (RTA ou web) donnent des valeurs \
+différentes pour une même caractéristique sans que la question précise la version \
+exacte, n'en choisis pas une arbitrairement — explique que la valeur dépend de la \
+version moteur et donne les différentes valeurs trouvées avec, si possible, à quelle \
+version chacune correspond.
+- Attention : le 106 Rallye n'a PAS le même moteur que le 106 S16 (S16 = 1.6i 16 \
+soupapes TU5J4 comme la VTS ; Rallye = moteur 8 soupapes différent selon la phase, \
+1.3i en Phase 1, 1.6i en Phase 2) — ne les confonds jamais.
+- La RTA fournie est rédigée pour la Citroën Saxo, mais la Peugeot 106 est mécaniquement \
+identique (mêmes pièces, "voitures jumelles") : une information RTA parlant de la Saxo \
+reste valable pour une question sur la 106 (et inversement), sauf si un extrait indique \
+explicitement une différence entre les deux modèles.
 {vehicle_line}
 Question : {query}
 """
@@ -161,13 +185,36 @@ def generate_answer(
     )
 
 
-def generate_web_answer(
-    settings: Settings, query: str, vehicle: str | None = None
+def _rta_context(rta_result: RtaAnswer, pages: list[PageEntry]) -> str:
+    if not rta_result.found:
+        return "(La RTA ne couvre pas ce sujet — aucune information pertinente trouvée.)"
+    cited = set(rta_result.cited_pages)
+    cited_pages = [p for p in pages if p.page_label in cited] or pages
+    extracts = "\n\n".join(f"--- Page {p.page_label} ---\n{p.text}" for p in cited_pages)
+    return f"Réponse RTA : {rta_result.answer}\n\nExtraits RTA cités (pages {', '.join(sorted(cited)) or '?'}) :\n{extracts}"
+
+
+def generate_combined_answer(
+    settings: Settings,
+    query: str,
+    rta_result: RtaAnswer,
+    pages: list[PageEntry],
+    vehicle: str | None = None,
 ) -> tuple[str, list[WebSourceInfo]]:
+    """Fait toujours une recherche web réelle (grounding Gemini) et la combine avec ce que
+    dit la RTA (déjà extrait par generate_answer) en une seule réponse, chaque information
+    étant attribuée à sa source. Fonctionne aussi quand rta_result.found est False : la
+    réponse se comporte alors comme une réponse web pure, mais reste honnêtement labellisée
+    (voir _COMBINED_ANSWER_PROMPT)."""
     client = _client(settings)
+    prompt = _COMBINED_ANSWER_PROMPT.format(
+        query=query,
+        vehicle_line=_vehicle_line(vehicle),
+        rta_context=_rta_context(rta_result, pages),
+    )
     response = client.models.generate_content(
         model=settings.gemini_model,
-        contents=_WEB_ANSWER_PROMPT.format(query=query, vehicle_line=_vehicle_line(vehicle)),
+        contents=prompt,
         config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())]),
     )
     answer = response.text or ""

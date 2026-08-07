@@ -18,7 +18,7 @@ from .models import AskResponse
 _TTL_SECONDS = 6 * 60 * 60
 _MAX_ENTRIES = 500
 
-CacheKey = tuple[str, str]
+CacheKey = tuple[str, str, str]
 
 
 def _normalize(text: str) -> str:
@@ -31,11 +31,14 @@ class AnswerCache:
         self._ttl = ttl_seconds
         self._data: OrderedDict[CacheKey, tuple[float, AskResponse]] = OrderedDict()
 
-    def _key(self, query: str, vehicle: str | None) -> CacheKey:
-        return (_normalize(query), _normalize(vehicle or ""))
+    def _key(self, query: str, vehicle: str | None, fuel: str | None) -> CacheKey:
+        # Le carburant fait partie de la clé : il change la moitié de la RTA consultée,
+        # deux réponses pour la même question mais un carburant différent ne doivent
+        # jamais partager une entrée de cache.
+        return (_normalize(query), _normalize(vehicle or ""), _normalize(fuel or ""))
 
-    def get(self, query: str, vehicle: str | None) -> AskResponse | None:
-        key = self._key(query, vehicle)
+    def get(self, query: str, vehicle: str | None, fuel: str | None = None) -> AskResponse | None:
+        key = self._key(query, vehicle, fuel)
         entry = self._data.get(key)
         if entry is None:
             return None
@@ -46,8 +49,8 @@ class AnswerCache:
         self._data.move_to_end(key)
         return response
 
-    def set(self, query: str, vehicle: str | None, response: AskResponse) -> None:
-        key = self._key(query, vehicle)
+    def set(self, query: str, vehicle: str | None, fuel: str | None, response: AskResponse) -> None:
+        key = self._key(query, vehicle, fuel)
         self._data[key] = (time.monotonic() + self._ttl, response)
         self._data.move_to_end(key)
         while len(self._data) > self._maxsize:

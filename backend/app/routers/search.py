@@ -18,10 +18,12 @@ def _excerpt(text: str) -> str:
 
 
 @router.get("/search", response_model=SearchResponse)
-def search(q: str, k: int | None = None, settings: Settings = Depends(get_settings)) -> SearchResponse:
+def search(
+    q: str, fuel: str | None = None, k: int | None = None, settings: Settings = Depends(get_settings)
+) -> SearchResponse:
     top_k = k or settings.top_k_default
     query_vector = embed_query(settings, q)
-    hits = index_store.search(query_vector, top_k)
+    hits = index_store.search(query_vector, top_k, variant=fuel)
     results = [
         SearchResult(
             page_num=hit.page.page_label,

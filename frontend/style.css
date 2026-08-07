@@ -179,14 +179,27 @@ main {
   gap: 0.6rem;
 }
 
+#fuel,
 #vehicle {
-  flex: 1 1 220px;
   padding: 0.85rem 1rem;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
   color: var(--fg);
   font-size: 0.95rem;
+}
+
+#fuel {
+  flex: 1 1 150px;
+}
+
+#vehicle {
+  flex: 1 1 220px;
+}
+
+#vehicle:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 #query {
@@ -199,6 +212,7 @@ main {
   font-size: 1.05rem;
 }
 
+#fuel:focus,
 #vehicle:focus,
 #query:focus {
   outline: 2px solid var(--accent);
@@ -646,6 +660,7 @@ footer a {
     flex-direction: column;
   }
 
+  #fuel,
   #vehicle,
   #query,
   #ask-form button {
