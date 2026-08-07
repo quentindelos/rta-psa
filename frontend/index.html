@@ -51,26 +51,6 @@
   </a>
 
   <main>
-    <form id="ask-form">
-      <select id="fuel" name="fuel" aria-label="Essence ou Diesel" required>
-        <option value="" disabled selected>Essence ou Diesel ?</option>
-        <option value="essence">Essence</option>
-        <option value="diesel">Diesel</option>
-      </select>
-      <select id="vehicle" name="vehicle" aria-label="Véhicule concerné" disabled>
-        <option value="">Choisis d'abord le carburant</option>
-      </select>
-      <input
-        type="text"
-        id="query"
-        name="q"
-        placeholder="ex : de quelle couleur est le fil du démarreur ?"
-        autocomplete="off"
-        required
-      />
-      <button type="submit" id="submit-btn">Chercher</button>
-    </form>
-
     <div id="history" class="history" hidden>
       <div class="history-header">
         <span>Questions récentes</span>
@@ -85,21 +65,39 @@
     </div>
 
     <div id="thread" class="thread" hidden></div>
+  </main>
 
-    <form id="followup-form" class="followup-form" hidden>
+  <form id="ask-form" class="composer">
+    <div id="composer-options" class="composer-options">
+      <select id="fuel" name="fuel" aria-label="Essence ou Diesel" required>
+        <option value="" disabled selected>Essence ou Diesel ?</option>
+        <option value="essence">Essence</option>
+        <option value="diesel">Diesel</option>
+      </select>
+      <select id="vehicle" name="vehicle" aria-label="Véhicule concerné" disabled>
+        <option value="">Choisis d'abord le carburant</option>
+      </select>
+    </div>
+    <div class="composer-row">
+      <button
+        id="new-conversation-btn"
+        class="composer-icon-btn"
+        type="button"
+        aria-label="Nouvelle recherche"
+        title="Nouvelle recherche"
+        hidden
+      >+</button>
       <input
         type="text"
-        id="followup-query"
-        placeholder="Poser une question de suivi sur le même sujet…"
+        id="query"
+        name="q"
+        placeholder="ex : de quelle couleur est le fil du démarreur ?"
         autocomplete="off"
+        required
       />
-      <button type="submit" id="followup-submit-btn">Envoyer</button>
-    </form>
-
-    <button id="new-conversation-btn" class="new-conversation-btn" type="button" hidden>
-      ↺ Nouvelle recherche
-    </button>
-  </main>
+      <button type="submit" id="submit-btn">Chercher</button>
+    </div>
+  </form>
 
   <footer>
     <p class="disclaimer">

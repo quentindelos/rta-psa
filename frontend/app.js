@@ -2,12 +2,10 @@ const form = document.getElementById("ask-form");
 const queryInput = document.getElementById("query");
 const fuelSelect = document.getElementById("fuel");
 const vehicleSelect = document.getElementById("vehicle");
+const composerOptions = document.getElementById("composer-options");
 const submitBtn = document.getElementById("submit-btn");
 const statusEl = document.getElementById("status");
 const threadEl = document.getElementById("thread");
-const followupForm = document.getElementById("followup-form");
-const followupInput = document.getElementById("followup-query");
-const followupSubmitBtn = document.getElementById("followup-submit-btn");
 const newConversationBtn = document.getElementById("new-conversation-btn");
 const lightbox = document.getElementById("lightbox");
 const lightboxImg = document.getElementById("lightbox-img");
@@ -303,9 +301,18 @@ mobileMenuQuery.addEventListener("change", (event) => layoutForMobileMenu(event.
 // Une conversation garde le fil (fuel/vehicle figés au premier tour + historique des
 // questions/réponses) pour que les questions de suivi ("et pour le diesel ?") soient
 // comprises sans tout reformuler. `activeConversation` est null tant qu'aucune question
-// n'a encore reçu de réponse.
+// n'a encore reçu de réponse. Une seule barre de saisie (style Claude/ChatGPT, fixée en
+// bas de page) sert à la fois pour la toute première question et pour les questions de
+// suivi : elle affiche le sélecteur carburant/véhicule uniquement tant qu'aucune
+// conversation n'est en cours (ce choix fige le reste du fil).
 let activeConversation = null;
 let currentEventSource = null;
+let idleSubmitLabel = "Chercher";
+
+function setLoading(isLoading) {
+  submitBtn.disabled = isLoading;
+  submitBtn.textContent = isLoading ? "Recherche…" : idleSubmitLabel;
+}
 
 function showInitialForm() {
   if (currentEventSource) {
@@ -315,9 +322,11 @@ function showInitialForm() {
   activeConversation = null;
   threadEl.innerHTML = "";
   threadEl.hidden = true;
-  followupForm.hidden = true;
+  composerOptions.hidden = false;
   newConversationBtn.hidden = true;
-  form.hidden = false;
+  queryInput.placeholder = "ex : de quelle couleur est le fil du démarreur ?";
+  idleSubmitLabel = "Chercher";
+  setLoading(false);
   statusEl.hidden = true;
   resetSearchSteps();
 }
@@ -328,6 +337,14 @@ function startNewConversation() {
   fuelSelect.value = "";
   populateVehicleOptions("");
   queryInput.focus();
+}
+
+function switchToFollowupMode() {
+  composerOptions.hidden = true;
+  newConversationBtn.hidden = false;
+  queryInput.placeholder = "Poser une question de suivi sur le même sujet…";
+  idleSubmitLabel = "Envoyer";
+  setLoading(false);
 }
 
 function openConversation(entry) {
@@ -343,13 +360,11 @@ function openConversation(entry) {
     turns: entry.turns,
   };
   restoreFuelAndVehicle(entry.fuel, entry.vehicle, entry.vehicleLabel);
-  form.hidden = true;
+  queryInput.value = "";
   statusEl.hidden = true;
   resetSearchSteps();
   renderThread();
-  followupForm.hidden = false;
-  followupInput.value = "";
-  newConversationBtn.hidden = false;
+  switchToFollowupMode();
 }
 
 newConversationBtn.addEventListener("click", startNewConversation);
@@ -387,81 +402,50 @@ function runSearch({ query, fuel, vehicle, historyTurns, onStep, onResult, onErr
   };
 }
 
+// Une seule soumission gère les deux cas : premier tour d'une conversation (fuel/vehicle
+// choisis dans #composer-options, une nouvelle conversation est créée) et question de
+// suivi (activeConversation existe déjà, fuel/vehicle/historique repris tels quels).
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   const query = queryInput.value.trim();
   if (!query) return;
 
   closeMobileMenu();
-  setLoading(submitBtn, true, "Chercher");
-  resetSearchSteps();
-  showStatus("Recherche en cours…", false);
 
-  const fuel = fuelSelect.value;
-  const vehicle = vehicleSelect.value;
-  const vehicleLabel = vehicle ? vehicleSelect.options[vehicleSelect.selectedIndex].text : "";
+  if (!activeConversation) {
+    const fuel = fuelSelect.value;
+    const vehicle = vehicleSelect.value;
+    const vehicleLabel = vehicle ? vehicleSelect.options[vehicleSelect.selectedIndex].text : "";
+    activeConversation = { id: newId(), vehicle, vehicleLabel, fuel, turns: [] };
+  }
+  const conversation = activeConversation;
+  const isFirstTurn = conversation.turns.length === 0;
 
-  activeConversation = { id: newId(), vehicle, vehicleLabel, fuel, turns: [] };
-
-  runSearch({
-    query,
-    fuel,
-    vehicle,
-    historyTurns: [],
-    onStep: addSearchStep,
-    onResult: (data) => {
-      activeConversation.turns.push({ query, response: data });
-      setLoading(submitBtn, false, "Chercher");
-      statusEl.hidden = true;
-      form.hidden = true;
-      followupForm.hidden = false;
-      followupInput.value = "";
-      newConversationBtn.hidden = false;
-      renderThread();
-      saveConversationToHistory(activeConversation);
-    },
-    onError: () => {
-      setLoading(submitBtn, false, "Chercher");
-      showStatus("Erreur : la recherche a échoué.", true);
-    },
-  });
-});
-
-followupForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  if (!activeConversation) return;
-  const query = followupInput.value.trim();
-  if (!query) return;
-
-  setLoading(followupSubmitBtn, true, "Envoyer");
+  setLoading(true);
   resetSearchSteps();
   showStatus("Recherche en cours…", false);
 
   runSearch({
     query,
-    fuel: activeConversation.fuel,
-    vehicle: activeConversation.vehicle,
-    historyTurns: activeConversation.turns,
+    fuel: conversation.fuel,
+    vehicle: conversation.vehicle,
+    historyTurns: conversation.turns,
     onStep: addSearchStep,
     onResult: (data) => {
-      activeConversation.turns.push({ query, response: data });
-      setLoading(followupSubmitBtn, false, "Envoyer");
+      conversation.turns.push({ query, response: data });
+      queryInput.value = "";
+      if (isFirstTurn) switchToFollowupMode();
+      setLoading(false);
       statusEl.hidden = true;
-      followupInput.value = "";
       renderThread();
-      saveConversationToHistory(activeConversation);
+      saveConversationToHistory(conversation);
     },
     onError: () => {
-      setLoading(followupSubmitBtn, false, "Envoyer");
+      setLoading(false);
       showStatus("Erreur : la recherche a échoué.", true);
     },
   });
 });
-
-function setLoading(button, isLoading, idleLabel) {
-  button.disabled = isLoading;
-  button.textContent = isLoading ? "Recherche…" : idleLabel;
-}
 
 function showStatus(message, isError) {
   statusEl.hidden = false;
