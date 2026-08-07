@@ -539,6 +539,24 @@ function renderTurn(turn) {
   return article;
 }
 
+// Cadre en surbrillance sur un schéma, pointant vers la zone repérée par Gemini comme
+// illustrant concrètement la réponse (voir schematic_highlights côté backend). Ignoré
+// si le repère couvre quasiment tout le schéma - dans ce cas rien de précis ne ressort
+// et un cadre autour de toute l'image n'apporterait rien.
+function highlightOverlay(highlight) {
+  if (!highlight) return "";
+  const width = highlight.x_max - highlight.x_min;
+  const height = highlight.y_max - highlight.y_min;
+  if (width * height > 0.9) return "";
+  const style = [
+    `left:${(highlight.x_min * 100).toFixed(2)}%`,
+    `top:${(highlight.y_min * 100).toFixed(2)}%`,
+    `width:${(width * 100).toFixed(2)}%`,
+    `height:${(height * 100).toFixed(2)}%`,
+  ].join(";");
+  return `<div class="source-highlight" style="${style}"></div>`;
+}
+
 function fillSources(container, sources) {
   if (!sources || sources.length === 0) {
     container.innerHTML = "";
@@ -551,15 +569,19 @@ function fillSources(container, sources) {
         return source.schematic_image_urls.map((url, i) => {
           const label =
             source.schematic_image_urls.length > 1 ? `Schéma ${i + 1} - page ${source.page_num}` : `Schéma - page ${source.page_num}`;
+          const highlight = source.schematic_highlights && source.schematic_highlights[i];
           return `
             <figure class="source-card source-card--schematic">
-              <img
-                class="source-image"
-                src="${url}"
-                alt="${label}"
-                loading="lazy"
-                data-full="${url}"
-              />
+              <div class="source-image-wrap">
+                <img
+                  class="source-image"
+                  src="${url}"
+                  alt="${label}"
+                  loading="lazy"
+                  data-full="${url}"
+                />
+                ${highlightOverlay(highlight)}
+              </div>
               <figcaption>
                 ${label}
                 <a class="full-page-link" data-full="${source.page_image_url}" href="#">page complète</a>

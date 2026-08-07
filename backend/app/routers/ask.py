@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 from fastapi import APIRouter, Depends
@@ -10,7 +11,7 @@ from fastapi.responses import StreamingResponse
 from ..answer_cache import answer_cache
 from ..config import Settings, get_settings
 from ..index_store import PageEntry, index_store
-from ..models import AskResponse, HistoryTurn, Source, WebSource
+from ..models import AskResponse, Highlight, HistoryTurn, Source, WebSource
 from ..vertex import (
     RtaAnswer,
     contextualize_query,
@@ -18,6 +19,7 @@ from ..vertex import (
     generate_answer,
     generate_combined_answer,
     generate_title,
+    locate_highlight,
 )
 
 router = APIRouter()
@@ -54,6 +56,26 @@ def _sources_from(result: RtaAnswer, pages: list[PageEntry], settings: Settings)
     # Ne garde que les pages effectivement citées dans la réponse - sinon on
     # affiche tout le lot de la recherche, y compris des pages non pertinentes.
     cited_pages = [page for page in pages if page.page_label in cited] or pages
+
+    # Un appel Gemini (vision) par schéma pour repérer la zone à mettre en évidence -
+    # en parallèle, sinon une réponse citant plusieurs schémas deviendrait lente (chaque
+    # appel prend une seconde ou deux). Best-effort : voir locate_highlight, jamais
+    # bloquant pour l'affichage des sources elles-mêmes.
+    jobs = [
+        (page_idx, schematic_idx, f"gs://{settings.gcs_bucket_pages}/{filename}")
+        for page_idx, page in enumerate(cited_pages)
+        for schematic_idx, filename in enumerate(page.schematic_image_filenames)
+    ]
+    highlights: dict[tuple[int, int], Highlight | None] = {}
+    if jobs:
+        with ThreadPoolExecutor(max_workers=min(8, len(jobs))) as executor:
+            futures = {
+                executor.submit(locate_highlight, settings, gcs_uri, result.answer): (page_idx, schematic_idx)
+                for page_idx, schematic_idx, gcs_uri in jobs
+            }
+            for future, key in futures.items():
+                highlights[key] = future.result()
+
     return [
         Source(
             page_num=page.page_label,
@@ -62,8 +84,12 @@ def _sources_from(result: RtaAnswer, pages: list[PageEntry], settings: Settings)
                 f"https://storage.googleapis.com/{settings.gcs_bucket_pages}/{filename}"
                 for filename in page.schematic_image_filenames
             ],
+            schematic_highlights=[
+                highlights.get((page_idx, schematic_idx))
+                for schematic_idx in range(len(page.schematic_image_filenames))
+            ],
         )
-        for page in cited_pages
+        for page_idx, page in enumerate(cited_pages)
     ]
 
 

@@ -707,6 +707,31 @@ button:disabled {
   background: var(--card-bg);
 }
 
+/* Le cadre de surbrillance est positionné en % de la zone occupée par l'image - avec
+   max-height + object-fit:contain sur .source-image, l'image peut ne pas remplir toute
+   sa boîte (bandes vides), ce qui décalerait le cadre. Pour un schéma avec surbrillance
+   (seul cas où .source-image-wrap est utilisé), on laisse donc l'image garder sa
+   hauteur naturelle (ratio d'aspect) pour que le wrapper corresponde exactement à
+   l'image affichée. */
+.source-image-wrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.source-image-wrap .source-image {
+  max-height: none;
+  height: auto;
+}
+
+.source-highlight {
+  position: absolute;
+  border: 3px solid #ff4757;
+  border-radius: 4px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
 .source-card figcaption {
   margin-top: 0.5rem;
   font-size: 0.85rem;

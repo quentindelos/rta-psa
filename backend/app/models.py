@@ -4,10 +4,24 @@ from typing import Literal
 from pydantic import BaseModel
 
 
+class Highlight(BaseModel):
+    """Zone d'un schéma à mettre en évidence (coordonnées normalisées 0-1, origine en
+    haut à gauche) - repérée par Gemini (vision) comme étant la partie du schéma qui
+    illustre concrètement la réponse donnée."""
+
+    x_min: float
+    y_min: float
+    x_max: float
+    y_max: float
+
+
 class Source(BaseModel):
     page_num: str
     page_image_url: str
     schematic_image_urls: list[str] = []
+    # Même longueur/ordre que schematic_image_urls ; None si aucune zone précise n'a pu
+    # être repérée pour ce schéma (le schéma reste affiché normalement dans ce cas).
+    schematic_highlights: list[Highlight | None] = []
 
 
 class WebSource(BaseModel):

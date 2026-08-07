@@ -11,7 +11,7 @@ from google.genai import types
 
 from .config import Settings
 from .index_store import PageEntry
-from .models import HistoryTurn
+from .models import Highlight, HistoryTurn
 
 _ANSWER_PROMPT = """Tu réponds en français à une question sur une revue technique \
 automobile, à partir UNIQUEMENT des extraits de pages fournis ci-dessous.
@@ -297,6 +297,48 @@ def generate_answer(
         answer=data.get("answer", "") or "",
         cited_pages=cited_pages,
     )
+
+
+_HIGHLIGHT_PROMPT = """Cette image est un schéma technique extrait d'une revue technique \
+automobile. Voici la réponse donnée à l'utilisateur, qui s'appuie en partie sur ce schéma :
+
+{answer}
+
+Identifie la zone de l'image la plus directement liée à cette réponse (le repère, la \
+pièce, le connecteur, le fil ou la valeur concerné). Réponds UNIQUEMENT avec un objet \
+JSON valide (pas de balises markdown) de la forme {{"box_2d": [ymin, xmin, ymax, xmax]}}, \
+avec des coordonnées entières normalisées entre 0 et 1000 (origine en haut à gauche). Si \
+rien de précis ne se distingue et que le schéma entier est pertinent, renvoie \
+{{"box_2d": [0, 0, 1000, 1000]}}.
+"""
+
+
+def locate_highlight(settings: Settings, gcs_uri: str, answer: str) -> Highlight | None:
+    """Repère (via Gemini vision) la zone d'un schéma qui illustre concrètement la
+    réponse donnée, pour la mettre en évidence côté frontend. Best-effort : toute
+    erreur (image illisible, JSON invalide, coordonnées absurdes) renvoie simplement
+    None - un schéma sans zone repérée reste affiché normalement, ce n'est jamais
+    bloquant pour la réponse elle-même."""
+    client = _client(settings)
+    try:
+        response = client.models.generate_content(
+            model=settings.gemini_model,
+            contents=[
+                types.Part.from_uri(file_uri=gcs_uri, mime_type="image/jpeg"),
+                _HIGHLIGHT_PROMPT.format(answer=answer),
+            ],
+            config=types.GenerateContentConfig(response_mime_type="application/json"),
+        )
+        data = json.loads(response.text or "{}")
+        box = data.get("box_2d")
+        if not (isinstance(box, list) and len(box) == 4):
+            return None
+        ymin, xmin, ymax, xmax = (float(v) / 1000 for v in box)
+    except Exception:  # noqa: BLE001 - un surlignage manquant n'est pas bloquant
+        return None
+    if not (0 <= xmin < xmax <= 1 and 0 <= ymin < ymax <= 1):
+        return None
+    return Highlight(x_min=xmin, y_min=ymin, x_max=xmax, y_max=ymax)
 
 
 def generate_title(settings: Settings, query: str, vehicle: str | None = None) -> str:
